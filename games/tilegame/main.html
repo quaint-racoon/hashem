@@ -1,0 +1,26 @@
+<html>
+  <head>
+    <style>
+      .controls { 
+        display: none; 
+      } 
+      
+      @media only screen and (max-width: 768px) {
+        .controls { 
+          display: block; 
+        } 
+        #flipphone{
+          display:block;
+        }
+      }
+    </style>
+    
+  </head>
+  <body style="margin:0px;">
+    <canvas id="canvas" style="top:50%;left:50%;transform: translate(-50%,-50%); position: absolute;"></canvas>
+  </body>
+  <script src="main.js"></script>
+  <img src="tree.png" id="tree" style="display:none;">
+  <img src="grass.png" id="grass" style="display:none;">
+  <img src="player.png" id="player" style="display:none"> 
+</html>
