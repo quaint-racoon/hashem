@@ -1,0 +1,56 @@
+<html>
+<head>
+  <title></title>
+  <style>
+.test{
+width:60%;
+height:40%;
+
+};
+    
+.center{
+  top:50%;
+}
+</style>
+</head>
+
+<body>
+<center class="center">
+<select id="time">
+  <option value="2">2 secounds</option>
+  <option value="5">5 secounds</option>
+  <option value="10">10 secounds</option>
+  <option value="15">15 secounds</option>
+  <option value="30">30 secounds</option>
+  <option value="60">1 minute</option>
+  <option value="120">2 minutes</option>
+</select>
+  <br>
+  <button id="test" class="test">click here to start</button>
+</center>
+  
+<script>
+var clicks = 0
+var start;
+var cps
+var button = document.getElementById("test")
+  function clicked(){
+    clicks+=1                     
+  }
+  function start(){
+        start = Date.now()
+  setInterval(function(){
+
+        let time = (Date.now() - start)/1000
+    cps = clicks/time
+    button.innerText = cps.toFixed(2)
+  },0)
+  }
+  
+  button.addEventListener ("click", function() {
+if(clicks == 0) start()
+    clicked()
+  })
+</script>
+</body>
+</html>

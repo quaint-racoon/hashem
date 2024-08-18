@@ -1,0 +1,106 @@
+<html>
+
+<head>
+
+</head>
+
+<body>
+  <canvas style="border:1px solid black;" width="500px" height="500px"></canvas><br>
+  <input type="file" accept="image/*" id="upload">
+  <button onclick="save();" id="save">save</button><button onclick="copy()">copy link</button><button
+    onclick="undo();">undo</button><br>
+  <input type="radio" id="coloring" name="tools">draw:<input type="color" id="color"> brush size:<input type="range"
+    min="1" max="10" id="brush">
+  <br><input type="radio" id="typing" name="tools">type, size:<input type="number" id="font" style="width:50px">
+  text:<input type="text" id="text">
+  <a></a>
+
+</body>
+
+<script>
+  const downloader = document.getElementsByTagName("a")[0]
+  const uploader = document.getElementById("upload")
+  const canvas = document.getElementsByTagName("canvas")[0]
+  const coloring = document.getElementById("coloring")
+  const color = document.getElementById("color")
+  const ctx = canvas.getContext("2d")
+  const typing = document.getElementById("typing")
+  var font = document.getElementById("font")
+  var text = document.getElementById("text")
+  var x; var y;
+  var draw;
+  var cy; var cx;
+  var frames = [];
+  canvas.addEventListener('mouseup', function (event) {
+    let frame = canvas.toDataURL("image/png")
+    frames.push(frame)
+    console.log(frames)
+  })
+  canvas.addEventListener('mousemove', function (event) {
+    x = event.clientX
+    y = event.clientY
+  })
+  window.addEventListener('mouseup', function (event) {
+    clearInterval(draw)
+  })
+  function undo() {
+    let imag = new Image
+    if (frames === []) return alert("nothing to undo!")
+    imag.src = frames.pop()
+    imag.onload = function () {
+      ctx.drawImage(imag, 0, 0, imag.width, imag.height);
+
+    };
+  }
+  function copy() {
+    let link = canvas.toDataURL("image/png")
+    navigator.clipboard.writeText()
+    const elem = document.createElement('textarea');
+    elem.value = link;
+    document.body.appendChild(elem);
+    elem.select();
+    document.execCommand('copy');
+    document.body.removeChild(elem);
+    alert("link coppied!")
+  }
+  canvas.addEventListener('mousedown', function (event) {
+
+    draw = setInterval(function () {
+      if (coloring.checked === true) {
+        let brush = document.getElementById("brush").value
+        ctx.beginPath();
+        ctx.fillStyle = color.value
+        ctx.arc(x, y, brush, 0, Math.PI * 2)
+        ctx.fill()
+      }
+    }, 1);
+
+    if (typing.checked === true) {
+      let cx = event.clientX
+      let cy = event.clientY
+      ctx.font = `${font.value}px Arial`;
+      ctx.fillText(text.value, cx, cy);
+    }
+    text.value = ""
+  })
+
+  uploader.addEventListener('input', function (event) {
+    var img = new Image
+    img.src = URL.createObjectURL(event.target.files[0])
+    img.onload = function () {
+      canvas.height = img.height * 0.5
+      canvas.width = img.width * 0.5
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, img.width * 0.5, img.height * 0.5)
+      URL.revokeObjectURL(img.src)
+    }
+
+  });
+  function save() {
+    downloader.href = canvas.toDataURL("image/png")
+    downloader.download = "downloaded-image.png"
+    downloader.click()
+  };
+</script>
+
+</html>

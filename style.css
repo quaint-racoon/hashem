@@ -1,0 +1,81 @@
+
+.chat{
+  position: absolute;
+  width:600px;
+  height:auto;
+  align:right;
+  right:0px;
+  bottom:0px;
+  padding:0px;
+};
+.mini{
+position: relative;
+top:0px;
+};
+.yt{
+position: absolute;  
+align:right;
+top: 0px;
+right:0px;
+  height:auto;
+  width: auto;
+};
+.btn1{
+background-color: #4CAF50;
+  border: none;
+  color: white;
+  padding: 15px 32px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+      
+    }
+.iconbar {
+    position: fixed;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-evenly;
+    top: 50%;
+    left: 100%;
+    transform: translate(-100%,-50%);
+    background-color: black;
+    height: 200px;
+    width: 35px;
+}
+.icon{
+    height: 35px;
+    width: 35px;
+    }
+.square{
+  display:none;
+  height:100px;
+  width:100px;
+  top:100%;
+  background-color:rgba(0,0,0,0.1);
+  position:absolute;
+  z-index:-10;
+  border-radius:10px;
+}
+
+@keyframes float{
+  from{
+    top:100%;
+    transform:rotate(0deg) translateY(50%);
+  }
+  to{
+    top:0;
+     transform:rotate(360deg) translateY(-50%);
+  }
+}
+#loading-screen{
+  position:fixed;
+  top:0;
+  left:0;
+  height:100%;
+  width:100%;
+  background-color:black;
+  z-index:10;
+}

@@ -1,0 +1,30 @@
+<html>
+
+<head>
+
+</head>
+
+<body>
+  <img src="files-docs/arrow.png" class="arrow" width="10%" height="10%">
+  <img src="files-docs/arrow.png" class="arrow" width="10%" height="10%">
+  <script>
+    document.addEventListener("mousemove", (mouse) => {
+      let x = mouse.clientX
+      let y = mouse.clientY
+      
+      let arrows = Array.from(document.getElementsByClassName("arrow"))
+      arrows.forEach(arrow => {
+        var angle;
+        let a = x / y
+        angle = Math.atan(a)
+        console.log(`x:${x} y:${y} angle:${angle}`)
+        arrow.style.transform = `rotate(${angle}deg)`
+      })
+    });
+
+
+
+  </script>
+</body>
+
+</html>

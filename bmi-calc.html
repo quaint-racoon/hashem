@@ -1,0 +1,36 @@
+<html>
+
+<head>
+  <title>bmi calculator!</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+
+</head>
+
+<body>
+  <form style="margin-block-end: 0px;">
+    <input type="number" name="height" placeholder="enter height in meters"><br>
+    <input type="number" name="weight" placeholder="enter weight in kilograms">
+  </form>
+  <button onclick="calc()">submit</button>
+  <p style="margin-block: 0px;">bmi : <span id="output"></span></p>
+  <p style="margin-block: 0px;">state : <span id="output2"></span></p>
+  <script>
+    function calc() {
+      let height = document.getElementsByName("height")[0].value
+      let weight = document.getElementsByName("weight")[0].value
+      let bmi = weight / (height * height)
+      document.getElementById("output").innerHTML = bmi
+      if (bmi < 18.5) return output("underweight")
+      if (bmi < 24.9) return output("normal")
+      if (bmi < 29.9) return output("overweight")
+      if (bmi < 34.9) return output("obese")
+      if (bmi > 35) return output("extremly obese")
+    }
+    function output(m) {
+      document.getElementById("output2").innerHTML = m
+    }
+  </script>
+</body>
+
+</html>

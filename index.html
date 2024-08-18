@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>hashem's thicc website</title>
+  <link href="style.css" rel="stylesheet" type="text/css" />
+  <style>
+    .searchtext {
+      height: 22px;
+      width: inherit;
+      position: absolute;
+      top: 0px;
+      margin: 1px;
+    }
+
+    .searchbtn01 {
+      position: absolute;
+      right: 1%;
+      top: 5px;
+      width: 10%;
+    }
+
+    .container {
+      height: 22px;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    #loading-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-evenly;
+    }
+
+    .loading-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+
+    }
+
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    .loader {
+      border: 16px solid #f3f3f3;
+      border-radius: 50%;
+      border-top: 16px solid #3498db;
+      width: 120px;
+      height: 120px;
+      -webkit-animation: spin 2s linear infinite;
+      animation: spin 2s linear infinite;
+      position: relative;
+    }
+
+    #facts-container {
+      color: white;
+      text-align: center;
+    }
+
+    #facts-intro {
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    #facts-text {}
+
+    /*pi thingy*/
+    #pi-display {
+      overflow: hidden;
+      border: 1px solid black;
+      width: 100vw;
+      height: 100vh;
+      background-color: black;
+      position: absolute;
+      overflow-wrap: break-word;
+      color:green;
+      top: 0;
+      left:0;
+      z-index:-999;
+    }
+    #pi-wrapper{
+      overflow:hidden;
+    }
+
+    @keyframes scroll {
+      from {
+        transform: translateY(0%);
+      }
+
+      to {
+        transform: translateY(-100%);
+      }
+    }
+
+    #pi-text {
+      position: relative;
+      top: 100%;
+    }
+  </style>
+<script src="data.json"></script>
+  <script>
+    window.addEventListener("load", () => {
+      document.getElementById("loading-screen").style.display = "none"
+      document.getElementById("pi-text").style.animation = "scroll linear infinite 600s"
+    })
+    let loading_text = document.getElementById("facts-text");
+let rand_index = Math.floor(Math.random()*facts.length)
+
+    loading_text.innerText = facts[rand_index]
+  </script>
+</head>
+
+<body>
+
+  <div id="loading-screen">
+    <div class="loading-container">
+      <img src="loading-icon.png" height="300px" width="300px">
+      <div class="loader"></div>
+    </div>
+    <div id="facts-container">
+      <div id="facts-intro"> DID YOU KNOW</div>
+      <div id="facts-text">...</div>
+    </div>
+  </div>
+
+  <input type="text" id="q" placeholder="search google!"><input type="submit" value="search"
+    onclick="search(document.getElementById('q').value)">
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/brain.js/2.0.0-beta.15/browser.min.js"></script>
+  <script src="search.js"></script>
+  <form onsubmit="event.preventDefault();say(document.getElementById('texttalk').value)">
+    <input type="text" id="texttalk" placeholder="what would you like to say?"><input type="submit" value="say">
+  </form>
+  <script>
+    function say(text) {
+
+
+      const speechSynthesis = window.speechSynthesis
+      let utterance = new SpeechSynthesisUtterance(text);
+      speechSynthesis.speak(utterance);
+    }
+    function move() {
+      let button = document.getElementById("button02")
+      let y = Math.random() * window.innerHeight
+      let x = Math.random() * window.innerWidth
+      button.style.top = `${y}px`
+      button.style.left = `${x}px`
+      console.log(x, y, window.innerWidth)
+    }
+
+  </script>
+  <br>
+  <a href="/lobby/main.html"><button>the lobby!!!</button></a>
+  <br>
+  <a href="https://drive.google.com/uc?id=1X0ATVY7vWJpAt9IhR_qQInvfTrrvmS7r" download="hashem's toolbar"
+    target="_blank"><button type="button" onclick="download();">download toolbar here</button></a>
+  <br>
+  <a href="https://github.com/spyder-ide/spyder/releases/latest/download/Spyder_64bit_full.exe" download="spyder setup"
+    target="_blank"><button type="button" onclick="download();">download spyder here</button></a>
+  <br>
+  <a href="https://www.python.org/ftp/python/3.10.2/python-3.10.2-amd64.exe" download="python setup"
+    target="_blank"><button type="button" onclick="download();">download python here</button></a>
+  <br>
+
+  <a href="/task_manager.html"><button>task manager</button></a>
+  <br>
+  <a href="/cps-test.html"><button>cps test</button></a>
+  <br>
+  <a href="/Photo-editor.html"><button>photo editor</button></a><br>
+  <a href="/games/main.html"><button>cool games!</button></a><br>
+  <a href="/code%20tester.html"><button>html code tester!</button></a><br><a href="/bmi-calc.html"><button>bmi
+      calculator</button></a><br>
+  <a href="/fast%20reader.html"><button>fast reader</button></a><br>
+  <button onmouseover="move();" id="button02" style="position: relative;">can u not click me?</button>
+
+  <div class="iconbar">
+    <a href="https://www.instagram.com/_xhashemx_/"><img src="files-docs/Insta.png" class="icon" title="my insta"></a>
+    <a href="https://discordapp.com/users/755851493432754186"><img src="files-docs/discord.png" class="icon"
+        title="my discord"></a>
+  </div>
+<div id="pi-wrapper">
+  <div id="pi-display">
+    <div id="pi-text">
+      loading pi thingy
+    </div>
+  </div>
+</div>
+  <script src="pi-thingy.js"></script>
+  <script>var url = "https://www.instagram.com/_xhashemx_/";
+    request.get(url, function (err, response, body) {
+      if (response.body.indexOf(("meta property=\"og:description\" content=\"")) != -1) {
+        document.innerHTML = response.body.split("meta property=\"og:description\" content=\"")[1].split("Followers")[0]
+      }
+    });</script>
+
+</html>

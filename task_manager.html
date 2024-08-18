@@ -1,0 +1,59 @@
+<html>
+
+<head>
+  <style>
+    button {
+      height: 40px;
+      width: 50%;
+      font-size: 30px;
+    }
+  </style>
+</head>
+
+
+<body>
+
+  <progress id="bar" value=100 max=100 style="width:100%;height:30px;">tasks completed</progress><br>
+  <button onclick="addtask() ;counter()">add new task</button>
+
+  <div id="div1"></div>
+
+
+  <script type="text/javascript">
+    let count = 0
+    let complete = 0
+    function counter() {
+      count = count + 1
+      bar();
+    };
+    function bar() {
+      let bar = document.getElementById("bar")
+      let cur = (complete / count) * 100
+      bar.value = cur
+
+    }
+    function addtask() {
+      let name = prompt("please enter the tasks name")
+      let button = document.createElement("button");
+      let BR = document.createElement("BR");
+      button.innerHTML = "❎- " + name;
+
+      var parent = document.getElementById("div1");
+
+      parent.appendChild(button);
+      parent.appendChild(BR);
+      let id = "btnid" + count
+      button.addEventListener("click", function () {
+        button.setAttribute("id", id);
+        document.getElementById(id).disabled = true;
+        complete = complete + 1
+        button.style.background = '#5ef272';
+        button.innerHTML = "✅- " + name
+        bar();
+      });
+
+    };
+
+  </script>
+</body>
+<html>

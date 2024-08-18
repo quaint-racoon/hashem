@@ -1,0 +1,50 @@
+<html>
+
+<head>
+  <style>
+    body {
+      background-color: black;
+    }
+
+    #wrapper {
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      position: absolute;
+      font-size: 100px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <input id="text" type="text" value="wow this is cool"><button onclick="display()">spell</button>
+  <p id="wrapper">⏺️</p>
+  <script>
+
+    function display() {
+      let display = document.getElementById("wrapper")
+      let text = document.getElementById("text").value.split(" ")
+      var i = 0
+      console.log("1")
+      loop()
+      function loop() {
+        if (i < text.length) {
+          setTimeout(function () {
+            display.innerHTML = text[i]
+            i += 1
+            loop()
+          }, 60000 / 300)
+        }
+        else i = 0
+      }
+    }
+  </script>
+</body>
+
+</html>

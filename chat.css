@@ -1,0 +1,15 @@
+.box{
+  background-color:dimgrey;
+  position: absolute;
+  padding:12px;
+  width:75%;
+  left:50%;
+  transform: translateX(-50%);
+  height:auto;
+}
+#chat{
+  margin:0px;
+  width:100%;
+  height:600px;
+  background-color:white;
+}
