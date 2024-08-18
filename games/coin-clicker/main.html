@@ -1,0 +1,36 @@
+<html>
+<head>
+<link rel="stylesheet" href="/games/coin%20clicker/style.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>hashem's thicc website</title>
+</head>
+
+<body>
+<div id="bar" class="bar">
+<p>money: <span id="money"></span> coins</p>
+</div>
+
+<h1 id="buymsg" class="buymsg"></h1>
+<img src="images/coin2.png" style="position:fixed;top: 50%;left: 50%;transform: translate(-50%, -50%);" id="coin">
+<img src="images/shop.png" onclick='shop()' class="shopico">
+<div id="shop" class="shop" hidden>
+<table>
+<tr><th>item</th><th>price</th><th>buy</th><th>owned</th></tr>
+<tr><td>gold miner</td><td>20</td><td><button onclick="buy('miner',20)">buy</button></td><td><span id="miner">0</span></td></tr>
+
+</table>
+</div>
+<script src="cookies.js"></script>
+<script src="money.js"></script>
+<script src="keydown.js"></script>
+<script src="click.js"></script>
+<script src="buy.js"></script>
+<script>
+function shop(){
+let shop = document.getElementById("shop");
+let check = hide("shop");
+shop.hidden = check;}
+</script>
+</body>  
+</html>
