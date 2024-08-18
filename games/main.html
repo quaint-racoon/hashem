@@ -1,0 +1,32 @@
+<html>
+<head>
+<script>
+function b(name,link){
+let main=document.getElementById("main")
+let a =document.createElement("a")
+let b =document.createElement("button")
+a.href="/games/"+link+"/main.html"
+b.innerHTML=name
+main.append(a)
+a.append(b)
+main.append(document.createElement("br"))
+}
+</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>hashem's thicc website</title>
+</head>
+
+<body>
+<div id="main"></div>
+<script>
+b("coin clicker","coin%20clicker")
+b("hangman","hangman")
+b("fighting game","fighting-game")
+b("shooting game \"actually good\"","shooting")
+b("tile game","tilegame")
+</script>
+
+</body>
+  
+</html>
