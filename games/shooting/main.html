@@ -1,0 +1,92 @@
+<html>
+
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+  <style>
+    body {
+      margin: 0px;
+    }
+
+    #upgrades-menu {
+      position: fixed;
+      left: 100%;
+      top: 50%;
+      transform: translate(-100%, -50%);
+      background-color: #238500;
+      padding: 6px;
+      border-radius: 6px;
+      user-select: none;
+    }
+    #upgrades-menu button{
+      width:100%;
+      border-radius: 15px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div style="color:white;position:fixed;margin:5px;user-select: none;" id="scorediv"><span>Score: </span><span
+      id="score">0</span></div>
+  <div style="color:white;position:fixed;margin:5px;user-select: none;right:0px;" id="fullscreendiv"><button
+      onclick="togglefullscreen()">
+      Go Full Screen!
+    </button></div>
+
+  <div
+    style="background-color: white;position: fixed;left: 50%;top: 50%;transform: translate(-50%, -50%);width: 300px;height: 150px;user-select: none;display: flex;border-radius: 10px;"
+    id="endscreen">
+
+    <div style="
+    display: flex;
+    flex-direction: column;
+    margin: 10px;
+    align-items: center;
+    justify-content: center;
+  ">
+      <img src="audio.png" height="30px" width="30px" style="user-select: none;" onclick="play()">
+      <h2 id="rampage-btn" style="background-color: darkred;border-radius: 8px;"
+        onclick='game.rampage.enabled = !game.rampage.enabled;this.style.backgroundColor = game.rampage.enabled? "darkgreen":"darkred";popup(`rampage mode has been ${game.rampage.enabled?"enabled":"disabled"}`)'>
+        😈</h2>
+    </div>
+    <div
+      style="position:fixed;display: flex;flex-direction: column;align-items: center;user-select: none;width:200;left:50%;transform: translateX(-50%);">
+      <h1 style="margin-bottom: 7px;margin-top: 13px;user-select: none;" id="endscore">0</h1>
+      <p style="margin-top: 0px;margin-bottom: 0px;user-select: none;">Points</p>
+      <h4 style="margin-bottom: 7px;margin-top: 0px;user-select: none;">bestscore: <span id="bestscore">0</span></h4>
+      <div>
+        <button
+          style="background-color: blue;color: white;border: 0px;width:200px;height:40px;border-radius: 20px;user-select: none;"
+          onclick="startgame()">Start game</button>
+      </div>
+    </div>
+  </div>
+  <div id="upgrades-menu">
+    <h3>upgrades</h3>
+    <button onclick="buy({name:'mono',price:0})" style="user-select: none;background-color: blue;"
+      id="mono">MONO</button>
+    <button onclick="buy({name:'flank',price:1000})" style="user-select: none;background-color: #808080;"
+      id="flank">FLANK</button>
+    <button onclick="buy({name:'void',price:1500})" style="user-select: none;background-color: #808080;"
+      id="void">BLACKHOLE</button>
+    <button onclick="buy({name:'homing',price:2000})" style="user-select: none;background-color: grey;"
+      id="homing">HOMING</button>
+    <button onclick="buy({name:'spray',price:2500})" style="user-select: none;background-color: #808080;"
+      id="spray">SPRAY</button>
+    <button onclick="buy({name:'twin',price:3000})" style="user-select: none;background-color: #808080;"
+      id="twin">TWIN</button>
+    <button onclick="buy({name:'flame',price:4000})" style="user-select: none;background-color: #808080;"
+      id="flame">FLAME THROWER</button>
+    <button onclick="buy({name:'triplet',price:5000})" style="user-select: none;background-color: #808080;"
+      id="triplet">TRIPLET</button>
+  </div>
+  <canvas id="canvas" style="background-color: black;"></canvas>
+  <img src="face.png" style="display:none;" id="face">
+
+</body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.5.1/gsap.min.js"
+  integrity="sha512-IQLehpLoVS4fNzl7IfH8Iowfm5+RiMGtHykgZJl9AWMgqx0AmJ6cRWcB+GaGVtIsnC4voMfm8f2vwtY+6oPjpQ=="
+  crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="main.js"></script>
+
+</html>
