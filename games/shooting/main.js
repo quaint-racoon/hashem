@@ -178,8 +178,8 @@ class Player {
     if (!clicked.left && !clicked.right) this.velocity.x = 0
     if (!clicked.down && !clicked.up) this.velocity.y = 0
     if ((clicked.down || clicked.up) && (clicked.left || clicked.right)) {
-      this.velocity.x = clicked.left ? -Math.sqrt(2) : Math.sqrt(2)
-      this.velocity.y = clicked.up ? -Math.sqrt(2) : Math.sqrt(2)
+      this.velocity.x = clicked.left ? -Math.sqrt(8) : Math.sqrt(8)
+      this.velocity.y = clicked.up ? -Math.sqrt(8) : Math.sqrt(8)
     }
     if (this.y + this.radius + this.velocity.y >= grid_size) {
       this.velocity.y = 0;
