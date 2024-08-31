@@ -1,14 +1,4 @@
 // Initialize Firebase with your configuration
-const firebaseConfig = {
-    apiKey: "AIzaSyB41FnXqonyEvWCg-wgp9lwPixSlqxNFP4",
-    authDomain: "shooting-game-5ef4c.firebaseapp.com",
-    databaseURL: "https://shooting-game-5ef4c-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "shooting-game-5ef4c",
-    storageBucket: "shooting-game-5ef4c.appspot.com",
-    messagingSenderId: "65687179069",
-    appId: "1:65687179069:web:1225dee8d96c87cbcbff54",
-    measurementId: "G-9YXJXD5R2Y"
-};
 
 // Initialize Firebase App and Database
 const app = firebase.initializeApp(firebaseConfig);
