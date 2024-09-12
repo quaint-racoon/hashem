@@ -34,7 +34,8 @@ auth.signInAnonymously().catch((error) => {
 // After authentication, set up game data
 auth.onAuthStateChanged((user) => {
     if (user) {
-        playerId = user.uid; // Use Firebase Authentication UID as player ID
+        playerId = user.uid;
+        console.log('Player ID:', playerId); // Debug log for player ID
         playersRef = db.ref('players');
         playerRef = playersRef.child(playerId);
         bulletsRef = db.ref('bullets');
@@ -42,6 +43,7 @@ auth.onAuthStateChanged((user) => {
         // Listen for changes in player data
         playersRef.on('value', (snapshot) => {
             players = snapshot.val() || {};
+            console.log('Players:', players); // Debug log for players data
         });
 
         // Listen for bullets in the game
@@ -58,6 +60,7 @@ auth.onAuthStateChanged((user) => {
 
 // Function to start the game and spawn the player
 function startGame() {
+    console.log('startGame called');
     if (gameStarted) {
         console.log('Game already started.');
         return;
@@ -71,19 +74,26 @@ function startGame() {
         vx: 0,  // Initial velocity X
         vy: 0,  // Initial velocity Y
         score: 0
+    }).then(() => {
+        console.log('Player added to Firebase');
+        // Remove player from Firebase when they disconnect
+        playerRef.onDisconnect().remove();
+
+        // Set the gameStarted flag to true after joining the game
+        gameStarted = true;
+
+        // Start game loop
+        gameLoop();
+    }).catch((error) => {
+        console.error('Error adding player to Firebase: ', error);
     });
-
-    // Remove player from Firebase when they disconnect
-    playerRef.onDisconnect().remove();
-
-    // Set the gameStarted flag to true after joining the game
-    gameStarted = true;
-
-    // Start game loop
-    gameLoop();
 }
 
 function shootBullet(e) {
+    console.log('Game Started:', gameStarted);
+    console.log('Player in game:', !!players[playerId]);
+    console.log('Players:', players); // Debug log to verify player data
+
     if (!gameStarted || !players[playerId]) {
         console.error('Cannot shoot bullet. Player not in game yet or game not started.');
         return;
@@ -95,7 +105,7 @@ function shootBullet(e) {
         ownerId: playerId,
         x: players[playerId].x,
         y: players[playerId].y,
-        direction: 'up', // Simplified, can be expanded based on click direction
+        direction: 'up',
     };
     bulletsRef.child(bulletId).set(bullet);
 }
