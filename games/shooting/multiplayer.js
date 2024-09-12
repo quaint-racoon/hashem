@@ -1,4 +1,3 @@
-
 // Initialize Firebase App and Database
 const app = firebase.initializeApp(firebaseConfig);
 const db = firebase.database(app);
@@ -27,67 +26,70 @@ document.addEventListener('click', shootBullet);
 
 let gameStarted = false; // Flag to check if the game has started
 
-// Renamed function to startGame and set gameStarted to true once the player joins
+// Automatically sign in users
+auth.signInAnonymously().catch((error) => {
+    console.error('Firebase auth error: ', error);
+});
+
+// After authentication, set up game data
+auth.onAuthStateChanged((user) => {
+    if (user) {
+        playerId = user.uid; // Use Firebase Authentication UID as player ID
+        playersRef = db.ref('players');
+        playerRef = playersRef.child(playerId);
+        bulletsRef = db.ref('bullets');
+
+        // Listen for changes in player data
+        playersRef.on('value', (snapshot) => {
+            players = snapshot.val() || {};
+        });
+
+        // Listen for bullets in the game
+        bulletsRef.on('value', (snapshot) => {
+            bullets = snapshot.val() || {};
+        });
+
+        // Notify user that they need to start the game
+        console.log('Please run startGame() to begin playing.');
+    } else {
+        console.log('User signed out');
+    }
+});
+
+// Function to start the game and spawn the player
 function startGame() {
-    // No need to change the display since 'canvas' is already block
+    if (gameStarted) {
+        console.log('Game already started.');
+        return;
+    }
 
-    // Authenticate anonymously
-    auth.signInAnonymously().catch((error) => {
-        console.error('Firebase auth error,: ', error);
+    // Add this player to the game
+    playerRef.set({
+        id: playerId,
+        x: 100, // Initial X position
+        y: 100, // Initial Y position
+        vx: 0,  // Initial velocity X
+        vy: 0,  // Initial velocity Y
+        score: 0
     });
 
-    // After authentication, set up the game
-    auth.onAuthStateChanged((user) => {
-        if (user) {
-            playerId = user.uid; // Use Firebase Authentication UID as player ID
-            playersRef = db.ref('players');
-            playerRef = playersRef.child(playerId);
-            bulletsRef = db.ref('bullets');
+    // Remove player from Firebase when they disconnect
+    playerRef.onDisconnect().remove();
 
-            // Add this player to the game
-            playerRef.set({
-                id: playerId,
-                x: 100, // Initial X position
-                y: 100, // Initial Y position
-                vx: 0,  // Initial velocity X
-                vy: 0,  // Initial velocity Y
-                score: 0
-            });
+    // Set the gameStarted flag to true after joining the game
+    gameStarted = true;
 
-            // Remove player from Firebase when they disconnect
-            playerRef.onDisconnect().remove();
-
-            // Listen for changes in player data
-            playersRef.on('value', (snapshot) => {
-                players = snapshot.val() || {};
-            });
-
-            // Listen for bullets in the game
-            bulletsRef.on('value', (snapshot) => {
-                bullets = snapshot.val() || {};
-            });
-
-            // Set the gameStarted flag to true after joining the game
-            gameStarted = true;
-
-            // Start game loop
-            gameLoop();
-        } else {
-            console.log('User signed out');
-        }
-    });
+    // Start game loop
+    gameLoop();
 }
 
 function shootBullet(e) {
-    console.log('Game Started:', gameStarted);
-    console.log('Player in game:', !!players[playerId]);
-
     if (!gameStarted || !players[playerId]) {
         console.error('Cannot shoot bullet. Player not in game yet or game not started.');
         return;
     }
 
-    const bulletId = db.ref('bullets').push().key;
+    const bulletId = bulletsRef.push().key;
     const bullet = {
         id: bulletId,
         ownerId: playerId,
@@ -97,7 +99,6 @@ function shootBullet(e) {
     };
     bulletsRef.child(bulletId).set(bullet);
 }
-
 
 function updatePlayers() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -159,4 +160,3 @@ function gameLoop() {
     updatePlayers();
     requestAnimationFrame(gameLoop);
 }
-
