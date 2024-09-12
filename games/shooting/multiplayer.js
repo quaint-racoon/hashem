@@ -1,4 +1,3 @@
-// Initialize Firebase with your configuration
 
 // Initialize Firebase App and Database
 const app = firebase.initializeApp(firebaseConfig);
