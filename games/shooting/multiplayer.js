@@ -28,7 +28,6 @@ document.addEventListener('click', shootBullet);
 
 function startgame() {
     // Show multiplayer canvas and hide singleplayer elements if needed
-    document.getElementById('canvas').style.display = 'block';
 
     // Authenticate anonymously
     auth.signInAnonymously().catch((error) => {
