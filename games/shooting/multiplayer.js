@@ -26,7 +26,7 @@ document.addEventListener('keydown', (e) => { keys[e.key] = true; });
 document.addEventListener('keyup', (e) => { keys[e.key] = false; });
 document.addEventListener('click', shootBullet);
 
-function startMultiplayerGame() {
+function startgame() {
     // Show multiplayer canvas and hide singleplayer elements if needed
     document.getElementById('gameCanvas').style.display = 'block';
 
@@ -154,6 +154,3 @@ function gameLoop() {
     updatePlayers();
     requestAnimationFrame(gameLoop);
 }
-
-// Start Multiplayer Button Event Listener
-document.getElementById('startMultiplayerButton').addEventListener('click', startMultiplayerGame);
