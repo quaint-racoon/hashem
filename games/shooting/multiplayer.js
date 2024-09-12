@@ -2,11 +2,10 @@ let gameStarted = false; // Flag to check if the game has started
 
 // Renamed function to startGame and set gameStarted to true once the player joins
 function startgame() {
-    // No need to change the display since 'canvas' is already block
 
     // Authenticate anonymously
     auth.signInAnonymously().catch((error) => {
-        console.error('Firebase auth error: ', error);
+        console.error('Firebase auth error,:', error);
     });
 
     // After authentication, set up the game
