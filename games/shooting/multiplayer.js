@@ -156,5 +156,3 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// Start Game Button Event Listener
-document.getElementById('startMultiplayerButton').addEventListener('click', startGame);
