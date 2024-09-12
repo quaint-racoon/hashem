@@ -1,11 +1,40 @@
+// Initialize Firebase with your configuration
+
+// Initialize Firebase App and Database
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.database(app);
+const auth = firebase.auth();
+
+let playerId;
+let playersRef;
+let playerRef;
+let bulletsRef;
+let bullets = {};
+let players = {};
+
+// Setup canvas
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+canvas.width = innerWidth;
+canvas.height = innerHeight;
+
+// Key state for handling continuous movement
+const keys = {};
+
+// Handle player movement and bullets
+document.addEventListener('keydown', (e) => { keys[e.key] = true; });
+document.addEventListener('keyup', (e) => { keys[e.key] = false; });
+document.addEventListener('click', shootBullet);
+
 let gameStarted = false; // Flag to check if the game has started
 
 // Renamed function to startGame and set gameStarted to true once the player joins
-function startgame() {
+function startGame() {
+    // No need to change the display since 'canvas' is already block
 
     // Authenticate anonymously
     auth.signInAnonymously().catch((error) => {
-        console.error('Firebase auth error,:', error);
+        console.error('Firebase auth error: ', error);
     });
 
     // After authentication, set up the game
@@ -127,3 +156,6 @@ function gameLoop() {
     updatePlayers();
     requestAnimationFrame(gameLoop);
 }
+
+// Start Game Button Event Listener
+document.getElementById('startMultiplayerButton').addEventListener('click', startGame);
