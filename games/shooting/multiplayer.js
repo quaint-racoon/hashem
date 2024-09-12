@@ -79,6 +79,9 @@ function startGame() {
 }
 
 function shootBullet(e) {
+    console.log('Game Started:', gameStarted);
+    console.log('Player in game:', !!players[playerId]);
+
     if (!gameStarted || !players[playerId]) {
         console.error('Cannot shoot bullet. Player not in game yet or game not started.');
         return;
@@ -94,6 +97,7 @@ function shootBullet(e) {
     };
     bulletsRef.child(bulletId).set(bullet);
 }
+
 
 function updatePlayers() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
