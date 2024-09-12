@@ -33,7 +33,7 @@ function startGame() {
 
     // Authenticate anonymously
     auth.signInAnonymously().catch((error) => {
-        console.error('Firebase auth error: ', error);
+        console.error('Firebase auth error,: ', error);
     });
 
     // After authentication, set up the game
