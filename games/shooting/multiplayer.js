@@ -75,16 +75,24 @@ function startMultiplayerGame() {
 }
 
 function shootBullet(e) {
+    const player = players[playerId];
+
+    if (!player) {
+        console.error('Player data not yet loaded.');
+        return;
+    }
+
     const bulletId = db.ref('bullets').push().key;
     const bullet = {
         id: bulletId,
         ownerId: playerId,
-        x: players[playerId].x,
-        y: players[playerId].y,
+        x: player.x,
+        y: player.y,
         direction: 'up', // Simplified, can be expanded based on click direction
     };
     bulletsRef.child(bulletId).set(bullet);
 }
+
 
 function updatePlayers() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
