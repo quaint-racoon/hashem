@@ -1,7 +1,7 @@
 let gameStarted = false; // Flag to check if the game has started
 
 // Renamed function to startGame and set gameStarted to true once the player joins
-function startGame() {
+function startgame() {
     // No need to change the display since 'canvas' is already block
 
     // Authenticate anonymously
