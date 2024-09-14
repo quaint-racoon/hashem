@@ -88,7 +88,7 @@ function startGame() {
                 clearInterval(waitForPlayer);
                 gameLoop(); // Start the game loop
             } else {
-                console.log('Waiting for player to appear in players object...');
+                console.log('Waiting for player to appear in players object...',players);
             }
         }, 100); // Check every 100ms if player is loaded in the players object
     }).catch((error) => {
