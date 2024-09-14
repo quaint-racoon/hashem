@@ -9,6 +9,7 @@ let playerRef;
 let bulletsRef;
 let bullets = {};
 let players = {};
+let gameStarted = false; // Flag to check if the game has started
 
 // Setup canvas
 const canvas = document.getElementById('canvas');
@@ -23,8 +24,6 @@ const keys = {};
 document.addEventListener('keydown', (e) => { keys[e.key] = true; });
 document.addEventListener('keyup', (e) => { keys[e.key] = false; });
 document.addEventListener('click', shootBullet);
-
-let gameStarted = false; // Flag to check if the game has started
 
 // Automatically sign in users
 auth.signInAnonymously().catch((error) => {
@@ -43,7 +42,7 @@ auth.onAuthStateChanged((user) => {
         // Listen for changes in player data
         playersRef.on('value', (snapshot) => {
             players = snapshot.val() || {};
-            console.log('Players:', players); // Debug log for players data
+            console.log('Players updated:', players); // Debug log for players data
         });
 
         // Listen for bullets in the game
@@ -79,11 +78,17 @@ function startGame() {
         // Remove player from Firebase when they disconnect
         playerRef.onDisconnect().remove();
 
-        // Set the gameStarted flag to true after joining the game
-        gameStarted = true;
-
-        // Start game loop
-        gameLoop();
+        // Ensure gameStarted is only set to true after player appears in 'players'
+        const waitForPlayer = setInterval(() => {
+            if (players[playerId]) {
+                console.log('Player successfully loaded in players object');
+                gameStarted = true;
+                clearInterval(waitForPlayer);
+                gameLoop(); // Start the game loop
+            } else {
+                console.log('Waiting for player to appear in players object...');
+            }
+        }, 100); // Check every 100ms if player is loaded in the players object
     }).catch((error) => {
         console.error('Error adding player to Firebase: ', error);
     });
