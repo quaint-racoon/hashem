@@ -30,25 +30,27 @@ auth.signInAnonymously().catch((error) => {
     console.error('Firebase auth error: ', error);
 });
 
-// After authentication, set up game data
+// Listen for player data immediately after the script loads
+playersRef = db.ref('players');
+bulletsRef = db.ref('bullets');
+
+// Listen for changes in player data (start listening immediately)
+playersRef.on('value', (snapshot) => {
+    players = snapshot.val() || {};
+    console.log('Players updated:', players); // Debug log for players data
+});
+
+// Listen for bullets in the game
+bulletsRef.on('value', (snapshot) => {
+    bullets = snapshot.val() || {};
+});
+
+// After authentication, set up the player
 auth.onAuthStateChanged((user) => {
     if (user) {
         playerId = user.uid;
         console.log('Player ID:', playerId); // Debug log for player ID
-        playersRef = db.ref('players');
         playerRef = playersRef.child(playerId);
-        bulletsRef = db.ref('bullets');
-
-        // Listen for changes in player data
-        playersRef.on('value', (snapshot) => {
-            players = snapshot.val() || {};
-            console.log('Players updated:', players); // Debug log for players data
-        });
-
-        // Listen for bullets in the game
-        bulletsRef.on('value', (snapshot) => {
-            bullets = snapshot.val() || {};
-        });
 
         // Notify user that they need to start the game
         console.log('Please run startGame() to begin playing.');
@@ -80,7 +82,7 @@ function startGame() {
 
         // Ensure gameStarted is only set to true after player appears in 'players'
         const waitForPlayer = setInterval(() => {
-            if (players[playerId]) {
+            if (players && players[playerId]) {
                 console.log('Player successfully loaded in players object');
                 gameStarted = true;
                 clearInterval(waitForPlayer);
