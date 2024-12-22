@@ -581,13 +581,37 @@ class ShootingEnemy extends Enemy {
     this.y += this.velocity.y * deltaTime / game.runningSpeed;
 
     if (frame % this.firingRate === 0) {
-      const angle = Math.atan2(player.y - this.y, player.x - this.x);
-      const velocity = {
+    // Calculate distance to player
+    const distance = Math.sqrt(
+        Math.pow(player.x - this.x, 2) + Math.pow(player.y - this.y, 2)
+    );
+
+    // Calculate bullet travel time
+    this.bulletTravelTime = distance / this.speed;
+
+    // Calculate player's predicted position
+    const playerPredictedPosition = {
+        x: player.x + player.velocity.x * this.bulletTravelTime,
+        y: player.y + player.velocity.y * this.bulletTravelTime
+    };
+
+    // Calculate angle to predicted position
+    const angle = Math.atan2(
+        playerPredictedPosition.y - this.y,
+        playerPredictedPosition.x - this.x
+    );
+
+    // Calculate velocity
+    const velocity = {
         x: Math.cos(angle) * this.speed,
         y: Math.sin(angle) * this.speed
-      };
-      enemyProjectiles.push(new enemyProjectile(this.x, this.y, this.radius * 0.3, this.color, velocity));
-    }
+    };
+
+    // Create and push new projectile
+    enemyProjectiles.push(
+        new enemyProjectile(this.x, this.y, this.radius * 0.3, this.color, velocity)
+    );
+}
   }
 }
 
