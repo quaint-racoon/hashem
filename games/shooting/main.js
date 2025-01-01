@@ -319,32 +319,33 @@ class Projectile {
   }
 }
 class SinWaveProjectile extends Projectile {
-  constructor(x, y, radius, color, targetX, targetY, speed, damage = 10) {
-    super(x, y, radius, color, { x: 0, y: 0 }, damage); 
+  constructor(x, y, radius, color, targetX, targetY, velocity, amplitude, damage = 10) {
+    super(x, y, radius, color, { x: 0, y: 0 }, damage);
     this.targetX = targetX;
     this.targetY = targetY;
-    this.speed = speed; 
-    this.amplitude = 5; // Set default amplitude to 5
-    this.angle = 0; 
-    this.distance = Math.sqrt(Math.pow(targetX - x, 2) + Math.pow(targetY - y, 2)); 
+    this.velocity = velocity;
+    this.amplitude = amplitude;
+    this.angle = 0;
+    this.distance = Math.sqrt(Math.pow(targetX - x, 2) + Math.pow(targetY - y, 2));
   }
 
   update() {
-    if (checkScreenBounds(this)) { 
-      this.draw(); 
+    if (checkScreenBounds(this)) {
+      this.draw();
     }
 
     // Calculate the current position along the sin wave
-    this.angle += this.speed * deltaTime / game.runningSpeed; 
+    let velocityMagnitude = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.y * this.velocity.y);
+    this.angle += velocityMagnitude * deltaTime / game.runningSpeed; 
 
     // Calculate the direction vector towards the target
-    let directionX = (this.targetX - this.x) / this.distance; 
+    let directionX = (this.targetX - this.x) / this.distance;
     let directionY = (this.targetY - this.y) / this.distance;
 
     // Apply the sin wave offset to the direction
-    let waveOffset = this.amplitude * Math.sin(this.angle); 
-    this.x += (directionX * this.speed + waveOffset * directionY) * deltaTime / game.runningSpeed; 
-    this.y += (directionY * this.speed - waveOffset * directionX) * deltaTime / game.runningSpeed; 
+    let waveOffset = this.amplitude * Math.sin(this.angle);
+    this.x += (directionX * velocityMagnitude + waveOffset * directionY) * deltaTime / game.runningSpeed;
+    this.y += (directionY * velocityMagnitude - waveOffset * directionX) * deltaTime / game.runningSpeed;
   }
 }
 class Flame extends Projectile {
