@@ -319,12 +319,12 @@ class Projectile {
   }
 }
 class SinWaveProjectile extends Projectile {
-  constructor(x, y, radius, color, targetX, targetY, velocity, amplitude, damage = 10) {
+  constructor(x, y, radius, color, targetX, targetY, velocity, damage = 10) {
     super(x, y, radius, color, { x: 0, y: 0 }, damage);
     this.targetX = targetX;
     this.targetY = targetY;
     this.velocity = velocity;
-    this.amplitude = amplitude;
+    this.amplitude = 5;
     this.angle = 0;
     this.distance = Math.sqrt(Math.pow(targetX - x, 2) + Math.pow(targetY - y, 2));
   }
