@@ -252,7 +252,7 @@ class Player {
         }));
         break;
       case "mono":
-        projectiles.push(new Projectile(this.x, this.y, 5, 'white', velocity = {
+        projectiles.push(new SinWaveProjectile(this.x, this.y, 5, 'white',mousex,mousey, velocity = {
           x: Math.cos(angle) * 4,
           y: Math.sin(angle) * 4
         }));
@@ -316,6 +316,35 @@ class Projectile {
     if (checkScreenBounds(this)) { this.draw() }
     this.x += this.velocity.x * deltaTime / game.runningSpeed
     this.y += this.velocity.y * deltaTime / game.runningSpeed
+  }
+}
+class SinWaveProjectile extends Projectile {
+  constructor(x, y, radius, color, targetX, targetY, speed, damage = 10) {
+    super(x, y, radius, color, { x: 0, y: 0 }, damage); 
+    this.targetX = targetX;
+    this.targetY = targetY;
+    this.speed = speed; 
+    this.amplitude = 5; // Set default amplitude to 5
+    this.angle = 0; 
+    this.distance = Math.sqrt(Math.pow(targetX - x, 2) + Math.pow(targetY - y, 2)); 
+  }
+
+  update() {
+    if (checkScreenBounds(this)) { 
+      this.draw(); 
+    }
+
+    // Calculate the current position along the sin wave
+    this.angle += this.speed * deltaTime / game.runningSpeed; 
+
+    // Calculate the direction vector towards the target
+    let directionX = (this.targetX - this.x) / this.distance; 
+    let directionY = (this.targetY - this.y) / this.distance;
+
+    // Apply the sin wave offset to the direction
+    let waveOffset = this.amplitude * Math.sin(this.angle); 
+    this.x += (directionX * this.speed + waveOffset * directionY) * deltaTime / game.runningSpeed; 
+    this.y += (directionY * this.speed - waveOffset * directionX) * deltaTime / game.runningSpeed; 
   }
 }
 class Flame extends Projectile {
