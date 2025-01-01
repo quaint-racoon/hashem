@@ -324,7 +324,7 @@ class SinWaveProjectile extends Projectile {
     this.targetX = targetX;
     this.targetY = targetY;
     this.velocity = velocity;
-    this.amplitude = 5;
+    this.amplitude = 15;
 
     // Calculate the initial angle based on the velocity vector
     this.angle = Math.atan2(velocity.y, velocity.x); 
