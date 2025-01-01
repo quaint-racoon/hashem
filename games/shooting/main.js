@@ -330,8 +330,8 @@ class SinWaveProjectile extends Projectile {
   }
 
   update() {
-    if (checkScreenBounds(this)) {
-      this.draw();
+    if (checkScreenBounds(this)) { 
+      this.draw(); 
     }
 
     // Calculate the current position along the sin wave
@@ -346,6 +346,23 @@ class SinWaveProjectile extends Projectile {
     let waveOffset = this.amplitude * Math.sin(this.angle);
     this.x += (directionX * velocityMagnitude + waveOffset * directionY) * deltaTime / game.runningSpeed;
     this.y += (directionY * velocityMagnitude - waveOffset * directionX) * deltaTime / game.runningSpeed;
+
+    // Log all variables for debugging
+    console.log({
+      x: this.x,
+      y: this.y,
+      velocity: this.velocity,
+      velocityMagnitude: velocityMagnitude,
+      targetX: this.targetX,
+      targetY: this.targetY,
+      directionX: directionX,
+      directionY: directionY,
+      angle: this.angle,
+      waveOffset: waveOffset,
+      deltaTime: deltaTime,
+      runningSpeed: game.runningSpeed,
+      amplitude: this.amplitude,
+    });
   }
 }
 class Flame extends Projectile {
