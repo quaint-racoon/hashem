@@ -324,7 +324,7 @@ class SinWaveProjectile extends Projectile {
     this.targetX = targetX;
     this.targetY = targetY;
     this.velocity = velocity;
-    this.amplitude = 15;
+    this.amplitude = 5; 
 
     // Calculate the initial angle based on the velocity vector
     this.angle = Math.atan2(velocity.y, velocity.x); 
@@ -347,12 +347,12 @@ class SinWaveProjectile extends Projectile {
 
     // Calculate the perpendicular vector for the sine wave offset
     let perpendicularX = -directionY; 
-    let perpendicularY = directionX;
+    let perpendicularY = directionX; 
 
     // Apply the sin wave offset to the direction
     let waveOffset = this.amplitude * Math.sin(this.angle);
-    this.x += (directionX * velocityMagnitude + perpendicularX * waveOffset) * deltaTime / game.runningSpeed;
-    this.y += (directionY * velocityMagnitude + perpendicularY * waveOffset) * deltaTime / game.runningSpeed;
+    this.x += (directionX * velocityMagnitude + perpendicularX * waveOffset) * deltaTime / game.runningSpeed; 
+    this.y += (directionY * velocityMagnitude + perpendicularY * waveOffset) * deltaTime / game.runningSpeed; 
 
     // Log all variables for debugging
     console.log({
