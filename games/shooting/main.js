@@ -319,55 +319,57 @@ class Projectile {
   }
 }
 class SinWaveProjectile extends Projectile {
-  constructor(x, y, radius, color, targetX, targetY, velocity, damage = 10) {
+  constructor(x, y, radius, color, targetX, targetY, velocity, amplitude, damage = 10) {
     super(x, y, radius, color, { x: 0, y: 0 }, damage);
     this.targetX = targetX;
     this.targetY = targetY;
     this.velocity = velocity;
-    this.amplitude = 5;
+    this.amplitude = amplitude;
     this.angle = 0;
     this.distance = Math.sqrt(Math.pow(targetX - x, 2) + Math.pow(targetY - y, 2));
   }
+
   update() {
-  if (checkScreenBounds(this)) {
-    this.draw();
+    if (checkScreenBounds(this)) {
+      this.draw();
+    }
+
+    // Calculate the current position along the sin wave
+    let velocityMagnitude = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.y * this.velocity.y);
+    this.angle += velocityMagnitude * deltaTime / game.runningSpeed; 
+
+    // Calculate the direction vector towards the target
+    let directionX = (this.targetX - this.x) / this.distance;
+    let directionY = (this.targetY - this.y) / this.distance;
+
+    // Calculate the perpendicular vector for the sine wave offset
+    let perpendicularX = -directionY; 
+    let perpendicularY = directionX;
+
+    // Apply the sin wave offset to the direction
+    let waveOffset = this.amplitude * Math.sin(this.angle);
+    this.x += (directionX * velocityMagnitude + perpendicularX * waveOffset) * deltaTime / game.runningSpeed;
+    this.y += (directionY * velocityMagnitude + perpendicularY * waveOffset) * deltaTime / game.runningSpeed;
+
+    // Log all variables for debugging
+    console.log({
+      x: this.x,
+      y: this.y,
+      velocity: this.velocity,
+      velocityMagnitude: velocityMagnitude,
+      targetX: this.targetX,
+      targetY: this.targetY,
+      directionX: directionX,
+      directionY: directionY,
+      perpendicularX: perpendicularX,
+      perpendicularY: perpendicularY,
+      angle: this.angle,
+      waveOffset: waveOffset,
+      deltaTime: deltaTime,
+      runningSpeed: game.runningSpeed,
+      amplitude: this.amplitude,
+    });
   }
-
-  // Calculate the direction vector as a unit vector
-  let directionX = (this.targetX - this.x) / this.distance;
-  let directionY = (this.targetY - this.y) / this.distance;
-
-  // Calculate the perpendicular vector for the sine wave offset
-  let perpendicularX = -directionY; 
-  let perpendicularY = directionX;
-
-  // Calculate the current position along the sin wave
-  this.angle += this.velocity.magnitude() * deltaTime / game.runningSpeed; 
-  let waveOffset = this.amplitude * Math.sin(this.angle);
-
-  // Apply the sin wave offset perpendicular to the direction
-  this.x += (directionX * this.velocity.magnitude() + perpendicularX * waveOffset) * deltaTime / game.runningSpeed;
-  this.y += (directionY * this.velocity.magnitude() + perpendicularY * waveOffset) * deltaTime / game.runningSpeed;
-
-  // Log all variables for debugging
-  console.log({
-    x: this.x,
-    y: this.y,
-    velocity: this.velocity,
-    velocityMagnitude: velocityMagnitude,
-    targetX: this.targetX,
-    targetY: this.targetY,
-    directionX: directionX,
-    directionY: directionY,
-    perpendicularX: perpendicularX,
-    perpendicularY: perpendicularY,
-    angle: this.angle,
-    waveOffset: waveOffset,
-    deltaTime: deltaTime,
-    runningSpeed: game.runningSpeed,
-    amplitude: this.amplitude,
-  });
-}
 }
 class Flame extends Projectile {
   constructor(x, y, radius, velocity,damage=2) {
