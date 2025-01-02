@@ -342,9 +342,12 @@ class SinWaveProjectile extends Projectile {
     const angle = Math.atan2(this.velocity.y, this.velocity.x); 
     const offset = this.amplitude * Math.sin(this.distanceTraveled / 20); 
 
-    // Apply offset to x and y components
-    const offsetX = offset * Math.cos(angle);
-    const offsetY = offset * Math.sin(angle);
+    // Calculate perpendicular direction to velocity
+    const perpendicularAngle = angle + Math.PI / 2; 
+
+    // Calculate offset components perpendicular to velocity
+    const offsetX = offset * Math.cos(perpendicularAngle);
+    const offsetY = offset * Math.sin(perpendicularAngle);
 
     // Update positions directly using velocity and offset
     this.x += (this.velocity.x + offsetX) * deltaTime / game.runningSpeed;
