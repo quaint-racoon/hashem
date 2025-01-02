@@ -162,7 +162,7 @@ class Player {
       },
       helix: {
         owned:false,
-        cooldown:90,
+        cooldown:200,
       },
       equiped: "helix"
     }
@@ -298,11 +298,14 @@ class Player {
         }));
         break;
       case "helix":
-        this.helix=!this.helix
         projectiles.push(new SinWaveProjectile(this.x, this.y, 5, 'white', velocity = {
           x: Math.cos(angle) * 4,
           y: Math.sin(angle) * 4
-        },10,mousex,mousey,this.helix))
+        },10,mousex,mousey,true))
+        projectiles.push(new SinWaveProjectile(this.x, this.y, 5, 'white', velocity = {
+          x: Math.cos(angle) * 4,
+          y: Math.sin(angle) * 4
+        },10,mousex,mousey))
         break;
     }
   };
@@ -331,57 +334,45 @@ class Projectile {
   }
 }
 class SinWaveProjectile extends Projectile {
-  constructor(x, y, radius, color, velocity, damage, targetX, targetY, flipSinWave = false) {
-    super(x, y, radius, color, velocity, damage);
-
-    this.targetX = targetX;
-    this.targetY = targetY;
-    this.startY = y;
-    this.startX = x;
-    this.amplitude = 7;
-    this.flipSinWave = flipSinWave;
-
-    // Store initial position for linear distance calculation
-    this.linearX = x;
-    this.linearY = y;
-  }
-
-  update() {
-    // Calculate the angle of the straight line to the target
-    const targetAngle = Math.atan2(this.targetY - this.startY, this.targetX - this.startX);
-
-    // Calculate the sin wave offset
-    const linearProgress = Math.sqrt(
-      (this.linearX - this.startX) ** 2 + (this.linearY - this.startY) ** 2
-    );
-    let offset = this.amplitude * Math.sin(linearProgress / 20);
-
-    // Flip the sin wave if specified
-    if (this.flipSinWave) {
-      offset = -offset;
-    }
-
-    // Calculate perpendicular direction to the shortest path
-    const perpendicularAngle = targetAngle + Math.PI / 2;
-
-    // Calculate offset components perpendicular to the shortest path
-    const offsetX = offset * Math.cos(perpendicularAngle);
-    const offsetY = offset * Math.sin(perpendicularAngle);
-
-    // Update positions directly using velocity and offset
-    this.x += this.velocity.x * deltaTime / game.runningSpeed + offsetX;
-    this.y += this.velocity.y * deltaTime / game.runningSpeed + offsetY;
-
-    // Update linear position for the next frame
-    this.linearX += this.velocity.x * deltaTime / game.runningSpeed;
-    this.linearY += this.velocity.y * deltaTime / game.runningSpeed;
-
-    if (checkScreenBounds(this)) {
-      this.draw();
-    }
-  }
+  constructor(x, y, radius, color, velocity, damage, targetX, targetY, flipSinWave = false) {
+    super(x, y, radius, color, velocity, damage);
+    this.targetX = targetX;
+    this.targetY = targetY;
+    this.startY = y;
+    this.startX = x;
+    this.amplitude = 7;
+    this.flipSinWave = flipSinWave; 
+    // Store initial position for linear distance calculation
+    this.linearX = x;
+    this.linearY = y;
+  }
+  update() {
+    // Calculate linear distance traveled
+    const dx = this.startX - this.linearX;
+    const dy = this.startY - this.linearY;
+    this.distanceTraveled = Math.sqrt(dx * dx + dy * dy);
+    // Calculate sin wave offset
+    const angle = Math.atan2(this.velocity.y, this.velocity.x); 
+    let offset = this.amplitude * Math.sin(this.distanceTraveled / 20); 
+    // Flip the sin wave if specified
+    if (this.flipSinWave) {
+      offset = -offset; 
+    }
+    // Calculate perpendicular direction to velocity
+    const perpendicularAngle = angle + Math.PI / 2; 
+    // Calculate offset components perpendicular to velocity
+    const offsetX = offset * Math.cos(perpendicularAngle);
+    const offsetY = offset * Math.sin(perpendicularAngle);
+    // Update positions directly using velocity and offset
+    this.x += (this.velocity.x + offsetX) * deltaTime / game.runningSpeed;
+    this.y += (this.velocity.y + offsetY) * deltaTime / game.runningSpeed;
+    // Update linear position for next frame
+    this.linearX += this.velocity.x * deltaTime / game.runningSpeed;
+    this.linearY += this.velocity.y * deltaTime / game.runningSpeed;
+    if (checkScreenBounds(this)) {
+      this.draw();
+  }
 }
-
 class Flame extends Projectile {
   constructor(x, y, radius, velocity,damage=2) {
     super(x, y, radius, `rgba(${Math.random() * 100 + 155}, ${Math.random() * 100 + 155}, 0, 0.5)`, velocity);
