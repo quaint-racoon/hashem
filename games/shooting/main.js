@@ -330,52 +330,41 @@ class Projectile {
     this.y += this.velocity.y * deltaTime / game.runningSpeed
   }
 }
-class SinWaveProjectile extends Projectile {
-  constructor(x, y, radius, color, velocity, damage, targetX, targetY, flipSinWave = false) {
-    super(x, y, radius, color, velocity, damage);
-    this.targetX = targetX;
-    this.targetY = targetY;
-    this.startY = y;
-    this.startX = x;
-    this.amplitude = 7; // Fixed amplitude
-    this.flipSinWave = flipSinWave;
+update() {
+  // Calculate the angle of the straight line to the target
+  const targetAngle = Math.atan2(this.targetY - this.startY, this.targetX - this.startX);
 
-    // Calculate direction vector
-    this.dirX = targetX - this.startX;
-    this.dirY = targetY - this.startY;
-    this.dirLength = Math.sqrt(this.dirX * this.dirX + this.dirY * this.dirY);
+  // Calculate the sin wave offset
+  const linearProgress = Math.sqrt(
+    (this.linearX - this.startX) ** 2 + (this.linearY - this.startY) ** 2
+  );
+  let offset = this.amplitude * Math.sin(linearProgress / 20);
 
-    // Normalize direction vector
-    this.dirX /= this.dirLength;
-    this.dirY /= this.dirLength;
-
-    // Calculate perpendicular vector for offset
-    this.perpX = -this.dirY;
-    this.perpY = this.dirX;
+  // Flip the sin wave if specified
+  if (this.flipSinWave) {
+    offset = -offset;
   }
 
-  update() {
-    // Calculate distance traveled from start
-    const dx = this.startX - this.x;
-    const dy = this.startY - this.y;
-    const distanceTraveled = Math.sqrt(dx * dx + dy * dy);
+  // Calculate perpendicular direction to the shortest path
+  const perpendicularAngle = targetAngle + Math.PI / 2;
 
-    // Calculate sin wave offset with pi/4 phase shift
-    let offset = this.amplitude * Math.sin(distanceTraveled / 20 + Math.PI / 4); 
+  // Calculate offset components perpendicular to the shortest path
+  const offsetX = offset * Math.cos(perpendicularAngle);
+  const offsetY = offset * Math.sin(perpendicularAngle);
 
-    if (this.flipSinWave) {
-      offset = -offset;
-    }
+  // Update positions directly using velocity and offset
+  this.x += this.velocity.x * deltaTime / game.runningSpeed + offsetX;
+  this.y += this.velocity.y * deltaTime / game.runningSpeed + offsetY;
 
-    // Apply offset perpendicular to direction
-    this.x += (this.velocity.x + offset * this.perpX) * deltaTime / game.runningSpeed;
-    this.y += (this.velocity.y + offset * this.perpY) * deltaTime / game.runningSpeed;
+  // Update linear position for the next frame
+  this.linearX += this.velocity.x * deltaTime / game.runningSpeed;
+  this.linearY += this.velocity.y * deltaTime / game.runningSpeed;
 
-    if (checkScreenBounds(this)) {
-      this.draw();
-    }
+  if (checkScreenBounds(this)) {
+    this.draw();
   }
 }
+
 class Flame extends Projectile {
   constructor(x, y, radius, velocity,damage=2) {
     super(x, y, radius, `rgba(${Math.random() * 100 + 155}, ${Math.random() * 100 + 155}, 0, 0.5)`, velocity);
