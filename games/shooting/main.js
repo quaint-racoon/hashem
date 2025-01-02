@@ -337,11 +337,14 @@ class SinWaveProjectile extends Projectile {
     this.targetY = targetY;
     this.startY = y;
     this.startX = x;
-    this.amplitude = 7; 
-    this.flipSinWave = flipSinWave; 
+    this.amplitude = 7;
+    this.flipSinWave = flipSinWave;
 
     // Calculate distance to target
-    this.targetDistance = Math.sqrt(Math.pow(this.targetX - this.startX, 2) + Math.pow(this.targetY - this.startY, 2));
+    this.targetDistance = Math.sqrt(Math.pow(targetX - this.startX, 2) + Math.pow(targetY - this.startY, 2));
+
+    // Calculate initial direction to target
+    this.targetAngle = Math.atan2(targetY - this.startY, targetX - this.startX);
 
     // Store initial position for linear distance calculation
     this.linearX = x;
@@ -354,15 +357,19 @@ class SinWaveProjectile extends Projectile {
     const dy = this.startY - this.linearY;
     this.distanceTraveled = Math.sqrt(dx * dx + dy * dy);
 
-    // Calculate normalized distance (0 to 1)
+    // Calculate normalized distance (0 to 1) relative to target
     const normalizedDistance = this.distanceTraveled / this.targetDistance;
 
     // Adjust for stretched/compressed sine wave (experiment with this value)
     const waveFactor = 2.0; 
 
-    // Calculate sin wave offset
+    // Calculate sin wave offset 
     const angle = Math.atan2(this.velocity.y, this.velocity.x); 
     let offset = this.amplitude * Math.sin(normalizedDistance * Math.PI * waveFactor); 
+
+    // Adjust offset based on target angle (simple approach)
+    const targetOffset = Math.cos(this.targetAngle - angle) * this.amplitude; 
+    offset += targetOffset;
 
     // Flip the sin wave if specified
     if (this.flipSinWave) {
