@@ -318,7 +318,21 @@ class Projectile {
     this.y += this.velocity.y * deltaTime / game.runningSpeed
   }
 }
-update() {
+class SinWaveProjectile extends Projectile {
+  constructor(x, y, radius, color, velocity, damage, targetX, targetY) {
+    super(x, y, radius, color, velocity, damage);
+    this.targetX = targetX;
+    this.targetY = targetY;
+    this.startY = y;
+    this.startX = x;
+    this.amplitude = 7;
+
+    // Store initial position for linear distance calculation
+    this.linearX = x;
+    this.linearY = y;
+  }
+
+  update() {
     // Calculate linear distance traveled
     const dx = this.startX - this.linearX;
     const dy = this.startY - this.linearY;
@@ -328,7 +342,7 @@ update() {
     const angle = Math.atan2(this.velocity.y, this.velocity.x); 
     const offset = this.amplitude * Math.sin(this.distanceTraveled / 20); 
 
-    // Apply offset to x component
+    // Apply offset to x and y components
     const offsetX = offset * Math.cos(angle);
     const offsetY = offset * Math.sin(angle);
 
@@ -343,6 +357,7 @@ update() {
     if (checkScreenBounds(this)) {
       this.draw();
     }
+  }
 }
 class Flame extends Projectile {
   constructor(x, y, radius, velocity,damage=2) {
