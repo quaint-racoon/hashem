@@ -121,6 +121,7 @@ class Player {
     this.y = y
     this.radius = radius
     this.color = color
+    this.helix = true,
     this.velocity = velocity
     this.cooldown = {
       weapon: false,
@@ -159,7 +160,11 @@ class Player {
         owned: false,
         cooldown: 50,
       },
-      equiped: "mono"
+      helix: {
+        owned:false,
+        cooldown:90,
+      },
+      equiped: "helix"
     }
   }
   draw() {
@@ -252,10 +257,10 @@ class Player {
         }));
         break;
       case "mono":
-        projectiles.push(new SinWaveProjectile(this.x, this.y, 5, 'white', velocity = {
+        projectiles.push(new Projectile(this.x, this.y, 5, 'white', velocity = {
           x: Math.cos(angle) * 4,
           y: Math.sin(angle) * 4
-        },10,mousex,mousey));
+        }));
         break;
       case "flank":
         projectiles.push(new Projectile(this.x, this.y, 5, 'white', velocity = {
@@ -292,6 +297,13 @@ class Player {
           y: Math.sin(angle + Math.PI * 4 / 3) * 4
         }));
         break;
+      case "helix":
+        this.helix=!this.helix
+        projectiles.push(new SinWaveProjectile(this.x, this.y, 5, 'white', velocity = {
+          x: Math.cos(angle) * 4,
+          y: Math.sin(angle) * 4
+        },10,mousex,mousey,this.helix))
+        break;
     }
   };
 }
@@ -319,13 +331,14 @@ class Projectile {
   }
 }
 class SinWaveProjectile extends Projectile {
-  constructor(x, y, radius, color, velocity, damage, targetX, targetY) {
+  constructor(x, y, radius, color, velocity, damage, targetX, targetY, flipSinWave = false) {
     super(x, y, radius, color, velocity, damage);
     this.targetX = targetX;
     this.targetY = targetY;
     this.startY = y;
     this.startX = x;
     this.amplitude = 7;
+    this.flipSinWave = flipSinWave; 
 
     // Store initial position for linear distance calculation
     this.linearX = x;
@@ -340,7 +353,12 @@ class SinWaveProjectile extends Projectile {
 
     // Calculate sin wave offset
     const angle = Math.atan2(this.velocity.y, this.velocity.x); 
-    const offset = this.amplitude * Math.sin(this.distanceTraveled / 20); 
+    let offset = this.amplitude * Math.sin(this.distanceTraveled / 20); 
+
+    // Flip the sin wave if specified
+    if (this.flipSinWave) {
+      offset = -offset; 
+    }
 
     // Calculate perpendicular direction to velocity
     const perpendicularAngle = angle + Math.PI / 2; 
