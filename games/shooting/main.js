@@ -318,36 +318,31 @@ class Projectile {
     this.y += this.velocity.y * deltaTime / game.runningSpeed
   }
 }
-class SinWaveProjectile extends Projectile {
-  constructor(x, y, radius, color, velocity, damage, targetX, targetY) {
-    super(x, y, radius, color, velocity, damage);
-    this.targetX = targetX;
-    this.targetY = targetY;
-    this.startY = y;
-    this.startX = x; 
-    this.amplitude = 7;
-  }
-
-  update() {
-    // Calculate distance traveled
-    const dx = this.startX - this.x;
-    const dy = this.startY - this.y;
-    this.distanceTraveled = Math.sqrt(dx * dx + dy * dy); 
+update() {
+    // Calculate linear distance traveled
+    const dx = this.startX - this.linearX;
+    const dy = this.startY - this.linearY;
+    this.distanceTraveled = Math.sqrt(dx * dx + dy * dy);
 
     // Calculate sin wave offset
-    const offset = this.amplitude * Math.sin(this.distanceTraveled / 20); // Adjust the divisor for wave frequency
+    const angle = Math.atan2(this.velocity.y, this.velocity.x); 
+    const offset = this.amplitude * Math.sin(this.distanceTraveled / 20); 
 
-    // Calculate direction to target
-    const angle = Math.atan2(this.targetY - this.y, this.targetX - this.x);
+    // Apply offset to x component
+    const offsetX = offset * Math.cos(angle);
+    const offsetY = offset * Math.sin(angle);
 
-    // Calculate new x and y positions with sin wave offset
-    this.x += Math.cos(angle) * this.velocity.x * deltaTime / game.runningSpeed;
-    this.y += Math.sin(angle) * this.velocity.y * deltaTime / game.runningSpeed + offset;
+    // Update positions directly using velocity and offset
+    this.x += (this.velocity.x + offsetX) * deltaTime / game.runningSpeed;
+    this.y += (this.velocity.y + offsetY) * deltaTime / game.runningSpeed;
+
+    // Update linear position for next frame
+    this.linearX += this.velocity.x * deltaTime / game.runningSpeed;
+    this.linearY += this.velocity.y * deltaTime / game.runningSpeed;
 
     if (checkScreenBounds(this)) {
       this.draw();
     }
-  }
 }
 class Flame extends Projectile {
   constructor(x, y, radius, velocity,damage=2) {
