@@ -340,44 +340,35 @@ class SinWaveProjectile extends Projectile {
     this.amplitude = 7;
     this.flipSinWave = flipSinWave;
 
-    // Calculate distance to target
-    this.targetDistance = Math.sqrt(Math.pow(targetX - this.startX, 2) + Math.pow(targetY - this.startY, 2));
-
-    // Calculate initial direction to target
-    this.targetAngle = Math.atan2(targetY - this.startY, targetX - this.startX);
-
-    // Store initial position for linear distance calculation
-    this.linearX = x;
-    this.linearY = y;
+    // Calculate midpoint between start and target
+    this.midX = (x + targetX) / 2;
+    this.midY = (y + targetY) / 2; 
   }
 
   update() {
-    // Calculate linear distance traveled
-    const dx = this.startX - this.linearX;
-    const dy = this.startY - this.linearY;
-    this.distanceTraveled = Math.sqrt(dx * dx + dy * dy);
+    // Calculate distance from start to midpoint
+    const distToMidpoint = Math.sqrt(
+      Math.pow(this.midX - this.startX, 2) + Math.pow(this.midY - this.startY, 2)
+    );
 
-    // Calculate normalized distance (0 to 1) relative to target
-    const normalizedDistance = this.distanceTraveled / this.targetDistance;
+    // Calculate distance traveled from start 
+    const dx = this.startX - this.x;
+    const dy = this.startY - this.y;
+    const distanceTraveled = Math.sqrt(dx * dx + dy * dy);
 
-    // Adjust for stretched/compressed sine wave (experiment with this value)
-    const waveFactor = 2.0; 
+    // Calculate normalized distance traveled (0 to 1)
+    const normalizedDistance = distanceTraveled / distToMidpoint;
 
-    // Calculate sin wave offset 
-    const angle = Math.atan2(this.velocity.y, this.velocity.x); 
-    let offset = this.amplitude * Math.sin(normalizedDistance * Math.PI * waveFactor); 
+    // Calculate sin wave offset based on normalized distance
+    const angle = Math.atan2(this.velocity.y, this.velocity.x);
+    let offset = this.amplitude * Math.sin(normalizedDistance * Math.PI); 
 
-    // Adjust offset based on target angle (simple approach)
-    const targetOffset = Math.cos(this.targetAngle - angle) * this.amplitude; 
-    offset += targetOffset;
-
-    // Flip the sin wave if specified
     if (this.flipSinWave) {
-      offset = -offset; 
+      offset = -offset;
     }
 
     // Calculate perpendicular direction to velocity
-    const perpendicularAngle = angle + Math.PI / 2; 
+    const perpendicularAngle = angle + Math.PI / 2;
 
     // Calculate offset components perpendicular to velocity
     const offsetX = offset * Math.cos(perpendicularAngle);
@@ -386,10 +377,6 @@ class SinWaveProjectile extends Projectile {
     // Update positions directly using velocity and offset
     this.x += (this.velocity.x + offsetX) * deltaTime / game.runningSpeed;
     this.y += (this.velocity.y + offsetY) * deltaTime / game.runningSpeed;
-
-    // Update linear position for next frame
-    this.linearX += this.velocity.x * deltaTime / game.runningSpeed;
-    this.linearY += this.velocity.y * deltaTime / game.runningSpeed;
 
     if (checkScreenBounds(this)) {
       this.draw();
