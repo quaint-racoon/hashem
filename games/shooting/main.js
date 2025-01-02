@@ -373,6 +373,7 @@ class SinWaveProjectile extends Projectile {
       this.draw();
   }
 }
+}
 class Flame extends Projectile {
   constructor(x, y, radius, velocity,damage=2) {
     super(x, y, radius, `rgba(${Math.random() * 100 + 155}, ${Math.random() * 100 + 155}, 0, 0.5)`, velocity);
