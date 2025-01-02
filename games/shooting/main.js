@@ -333,6 +333,7 @@ class Projectile {
     this.y += this.velocity.y * deltaTime / game.runningSpeed
   }
 }
+class SinWaveProjectile extends Projectile {
   constructor(x, y, radius, color, velocity, damage, targetX, targetY, flipSinWave = false) {
     super(x, y, radius, color, velocity, damage);
     this.targetX = targetX;
