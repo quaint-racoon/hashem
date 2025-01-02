@@ -333,58 +333,43 @@ class Projectile {
     this.y += this.velocity.y * deltaTime / game.runningSpeed
   }
 }
-class SinWaveProjectile extends Projectile {
   constructor(x, y, radius, color, velocity, damage, targetX, targetY, flipSinWave = false) {
     super(x, y, radius, color, velocity, damage);
-
     this.targetX = targetX;
     this.targetY = targetY;
     this.startY = y;
     this.startX = x;
-    this.amplitude = 7; // Adjust amplitude as needed
-    this.frequency = 20; // Frequency controls the wave's compression
-    this.flipSinWave = flipSinWave;
-
+    this.amplitude = 7;
+    this.flipSinWave = flipSinWave; 
     // Store initial position for linear distance calculation
     this.linearX = x;
     this.linearY = y;
-    this.totalDistance = Math.sqrt((targetX - x) ** 2 + (targetY - y) ** 2); // Total straight-line distance
   }
-
   update() {
-    // Calculate progress along the straight line
-    const dx = this.targetX - this.startX;
-    const dy = this.targetY - this.startY;
-    const distanceTraveled = Math.sqrt((this.linearX - this.startX) ** 2 + (this.linearY - this.startY) ** 2);
-    const progress = distanceTraveled / this.totalDistance;
-
-    // Calculate the sine wave offset along the path
-    let offset = this.amplitude * Math.sin((progress * Math.PI * 2 * this.frequency) / this.totalDistance);
-
-    // Flip the sine wave if specified
+    // Calculate linear distance traveled
+    const dx = this.startX - this.linearX;
+    const dy = this.startY - this.linearY;
+    this.distanceTraveled = Math.sqrt(dx * dx + dy * dy);
+    // Calculate sin wave offset
+    const angle = Math.atan2(this.velocity.y, this.velocity.x); 
+    let offset = this.amplitude * Math.sin(this.distanceTraveled / 20); 
+    // Flip the sin wave if specified
     if (this.flipSinWave) {
-      offset = -offset;
+      offset = -offset; 
     }
-
-    // Calculate perpendicular direction to the path
-    const angle = Math.atan2(dy, dx);
-    const perpendicularAngle = angle + Math.PI / 2;
-
-    // Calculate offset components perpendicular to the straight path
+    // Calculate perpendicular direction to velocity
+    const perpendicularAngle = angle + Math.PI / 2; 
+    // Calculate offset components perpendicular to velocity
     const offsetX = offset * Math.cos(perpendicularAngle);
     const offsetY = offset * Math.sin(perpendicularAngle);
-
     // Update positions directly using velocity and offset
-    this.x += (this.velocity.x * deltaTime / game.runningSpeed) + offsetX;
-    this.y += (this.velocity.y * deltaTime / game.runningSpeed) + offsetY;
-
-    // Update linear position for the next frame
+    this.x += (this.velocity.x + offsetX) * deltaTime / game.runningSpeed;
+    this.y += (this.velocity.y + offsetY) * deltaTime / game.runningSpeed;
+    // Update linear position for next frame
     this.linearX += this.velocity.x * deltaTime / game.runningSpeed;
     this.linearY += this.velocity.y * deltaTime / game.runningSpeed;
-
     if (checkScreenBounds(this)) {
       this.draw();
-    }
   }
 }
 
