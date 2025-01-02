@@ -337,46 +337,39 @@ class SinWaveProjectile extends Projectile {
     this.targetY = targetY;
     this.startY = y;
     this.startX = x;
-    this.amplitude = 7;
+    this.amplitude = 7; // Fixed amplitude
     this.flipSinWave = flipSinWave;
 
-    // Calculate midpoint between start and target
-    this.midX = (x + targetX) / 2;
-    this.midY = (y + targetY) / 2; 
+    // Calculate direction vector
+    this.dirX = targetX - startX;
+    this.dirY = targetY - startY;
+    this.dirLength = Math.sqrt(this.dirX * this.dirX + this.dirY * this.dirY);
+
+    // Normalize direction vector
+    this.dirX /= this.dirLength;
+    this.dirY /= this.dirLength;
+
+    // Calculate perpendicular vector for offset
+    this.perpX = -this.dirY;
+    this.perpY = this.dirX;
   }
 
   update() {
-    // Calculate distance from start to midpoint
-    const distToMidpoint = Math.sqrt(
-      Math.pow(this.midX - this.startX, 2) + Math.pow(this.midY - this.startY, 2)
-    );
-
-    // Calculate distance traveled from start 
+    // Calculate distance traveled from start
     const dx = this.startX - this.x;
     const dy = this.startY - this.y;
     const distanceTraveled = Math.sqrt(dx * dx + dy * dy);
 
-    // Calculate normalized distance traveled (0 to 1)
-    const normalizedDistance = distanceTraveled / distToMidpoint;
-
-    // Calculate sin wave offset based on normalized distance
-    const angle = Math.atan2(this.velocity.y, this.velocity.x);
-    let offset = this.amplitude * Math.sin(normalizedDistance * Math.PI); 
+    // Calculate sin wave offset with pi/4 phase shift
+    let offset = this.amplitude * Math.sin(distanceTraveled / 20 + Math.PI / 4); 
 
     if (this.flipSinWave) {
       offset = -offset;
     }
 
-    // Calculate perpendicular direction to velocity
-    const perpendicularAngle = angle + Math.PI / 2;
-
-    // Calculate offset components perpendicular to velocity
-    const offsetX = offset * Math.cos(perpendicularAngle);
-    const offsetY = offset * Math.sin(perpendicularAngle);
-
-    // Update positions directly using velocity and offset
-    this.x += (this.velocity.x + offsetX) * deltaTime / game.runningSpeed;
-    this.y += (this.velocity.y + offsetY) * deltaTime / game.runningSpeed;
+    // Apply offset perpendicular to direction
+    this.x += (this.velocity.x + offset * this.perpX) * deltaTime / game.runningSpeed;
+    this.y += (this.velocity.y + offset * this.perpY) * deltaTime / game.runningSpeed;
 
     if (checkScreenBounds(this)) {
       this.draw();
