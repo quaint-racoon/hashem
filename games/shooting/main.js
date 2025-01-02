@@ -330,38 +330,55 @@ class Projectile {
     this.y += this.velocity.y * deltaTime / game.runningSpeed
   }
 }
-update() {
-  // Calculate the angle of the straight line to the target
-  const targetAngle = Math.atan2(this.targetY - this.startY, this.targetX - this.startX);
+class SinWaveProjectile extends Projectile {
+  constructor(x, y, radius, color, velocity, damage, targetX, targetY, flipSinWave = false) {
+    super(x, y, radius, color, velocity, damage);
 
-  // Calculate the sin wave offset
-  const linearProgress = Math.sqrt(
-    (this.linearX - this.startX) ** 2 + (this.linearY - this.startY) ** 2
-  );
-  let offset = this.amplitude * Math.sin(linearProgress / 20);
+    this.targetX = targetX;
+    this.targetY = targetY;
+    this.startY = y;
+    this.startX = x;
+    this.amplitude = 7;
+    this.flipSinWave = flipSinWave;
 
-  // Flip the sin wave if specified
-  if (this.flipSinWave) {
-    offset = -offset;
+    // Store initial position for linear distance calculation
+    this.linearX = x;
+    this.linearY = y;
   }
 
-  // Calculate perpendicular direction to the shortest path
-  const perpendicularAngle = targetAngle + Math.PI / 2;
+  update() {
+    // Calculate the angle of the straight line to the target
+    const targetAngle = Math.atan2(this.targetY - this.startY, this.targetX - this.startX);
 
-  // Calculate offset components perpendicular to the shortest path
-  const offsetX = offset * Math.cos(perpendicularAngle);
-  const offsetY = offset * Math.sin(perpendicularAngle);
+    // Calculate the sin wave offset
+    const linearProgress = Math.sqrt(
+      (this.linearX - this.startX) ** 2 + (this.linearY - this.startY) ** 2
+    );
+    let offset = this.amplitude * Math.sin(linearProgress / 20);
 
-  // Update positions directly using velocity and offset
-  this.x += this.velocity.x * deltaTime / game.runningSpeed + offsetX;
-  this.y += this.velocity.y * deltaTime / game.runningSpeed + offsetY;
+    // Flip the sin wave if specified
+    if (this.flipSinWave) {
+      offset = -offset;
+    }
 
-  // Update linear position for the next frame
-  this.linearX += this.velocity.x * deltaTime / game.runningSpeed;
-  this.linearY += this.velocity.y * deltaTime / game.runningSpeed;
+    // Calculate perpendicular direction to the shortest path
+    const perpendicularAngle = targetAngle + Math.PI / 2;
 
-  if (checkScreenBounds(this)) {
-    this.draw();
+    // Calculate offset components perpendicular to the shortest path
+    const offsetX = offset * Math.cos(perpendicularAngle);
+    const offsetY = offset * Math.sin(perpendicularAngle);
+
+    // Update positions directly using velocity and offset
+    this.x += this.velocity.x * deltaTime / game.runningSpeed + offsetX;
+    this.y += this.velocity.y * deltaTime / game.runningSpeed + offsetY;
+
+    // Update linear position for the next frame
+    this.linearX += this.velocity.x * deltaTime / game.runningSpeed;
+    this.linearY += this.velocity.y * deltaTime / game.runningSpeed;
+
+    if (checkScreenBounds(this)) {
+      this.draw();
+    }
   }
 }
 
