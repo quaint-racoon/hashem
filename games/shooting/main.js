@@ -255,7 +255,7 @@ class Player {
         projectiles.push(new SinWaveProjectile(this.x, this.y, 5, 'white', velocity = {
           x: Math.cos(angle) * 4,
           y: Math.sin(angle) * 4
-        },10,,mousex,mousey));
+        },10,mousex,mousey));
         break;
       case "flank":
         projectiles.push(new Projectile(this.x, this.y, 5, 'white', velocity = {
@@ -324,16 +324,15 @@ class SinWaveProjectile extends Projectile {
     this.targetX = targetX;
     this.targetY = targetY;
     this.startY = y;
+    this.startX = x; 
     this.amplitude = 7;
-    this.distanceTraveled = 0;
   }
 
   update() {
     // Calculate distance traveled
-    this.distanceTraveled += Math.sqrt(
-      Math.pow(this.velocity.x * deltaTime / game.runningSpeed, 2) +
-        Math.pow(this.velocity.y * deltaTime / game.runningSpeed, 2)
-    );
+    const dx = this.startX - this.x;
+    const dy = this.startY - this.y;
+    this.distanceTraveled = Math.sqrt(dx * dx + dy * dy); 
 
     // Calculate sin wave offset
     const offset = this.amplitude * Math.sin(this.distanceTraveled / 20); // Adjust the divisor for wave frequency
