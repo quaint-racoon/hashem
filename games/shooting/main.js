@@ -341,8 +341,8 @@ class SinWaveProjectile extends Projectile {
     this.flipSinWave = flipSinWave;
 
     // Calculate direction vector
-    this.dirX = targetX - startX;
-    this.dirY = targetY - startY;
+    this.dirX = targetX - this.startX;
+    this.dirY = targetY - this.startY;
     this.dirLength = Math.sqrt(this.dirX * this.dirX + this.dirY * this.dirY);
 
     // Normalize direction vector
