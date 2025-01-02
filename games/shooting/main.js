@@ -341,7 +341,7 @@ class SinWaveProjectile extends Projectile {
     this.flipSinWave = flipSinWave; 
 
     // Calculate distance to target
-    this.targetDistance = Math.sqrt(Math.pow(targetX - startX, 2) + Math.pow(targetY - startY, 2));
+    this.targetDistance = Math.sqrt(Math.pow(this.targetX - this.startX, 2) + Math.pow(this.targetY - this.startY, 2));
 
     // Store initial position for linear distance calculation
     this.linearX = x;
