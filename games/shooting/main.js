@@ -121,7 +121,6 @@ class Player {
     this.y = y
     this.radius = radius
     this.color = color
-    this.helix = true,
     this.velocity = velocity
     this.cooldown = {
       weapon: false,
@@ -340,7 +339,7 @@ class SinWaveProjectile extends Projectile {
     this.targetY = targetY;
     this.startY = y;
     this.startX = x;
-    this.amplitude = 7;
+    this.amplitude = 4;
     this.flipSinWave = flipSinWave; 
     // Store initial position for linear distance calculation
     this.linearX = x;
