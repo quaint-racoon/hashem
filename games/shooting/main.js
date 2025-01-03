@@ -161,10 +161,10 @@ class Player {
         cooldown: 50,
       },
       helix: {
-        owned:false,
-        cooldown:200,
+        owned: false,
+        cooldown:100,
       },
-      equiped: "helix"
+      equiped: "mono"
     }
   }
   draw() {
