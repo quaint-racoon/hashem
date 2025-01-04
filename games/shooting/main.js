@@ -43,6 +43,54 @@ const game = {
   paused: false,
 }
 
+const weapons = {
+  mono: {
+    owned: true,
+    cooldown: 200,
+    price: 0
+  },
+  flank: {
+    owned: false,
+    cooldown: 100,
+    price: 1000
+  },
+  void: {
+    owned: false,
+    cooldown: 400,
+    price: 1500
+  },
+  homing: {
+    owned: false,
+    cooldown: 200,
+    price: 2000
+  },
+  spray: {
+    owned: false,
+    cooldown: 700,
+    price: 2500
+  },
+  twin: {
+    owned: false,
+    cooldown: 100,
+    price: 3000
+  },
+  helix: {
+    owned: false,
+    cooldown: 100,
+    price: 3500
+  },
+  flame: {
+    owned: false,
+    cooldown: 50,
+    price: 4000
+  },
+  triplet: {
+    owned: false,
+    cooldown: 125,
+    price: 5000
+  }
+}
+
 function play() {
   if (background_sound.paused === true) {
     background_sound.play()
@@ -213,42 +261,6 @@ class Player {
       crate: false,
     }
     this.weapons = {
-      triplet: {
-        owned: false,
-        cooldown: 125,
-      },
-      flank: {
-        owned: false,
-        cooldown: 75,
-      },
-      twin: {
-        owned: false,
-        cooldown: 100,
-      },
-      homing: {
-        owned: false,
-        cooldown: 200,
-      },
-      spray: {
-        owned: false,
-        cooldown: 700,
-      },
-      mono: {
-        owned: true,
-        cooldown: 200,
-      },
-      void: {
-        owned: false,
-        cooldown: 400,
-      },
-      flame: {
-        owned: false,
-        cooldown: 50,
-      },
-      helix: {
-        owned: false,
-        cooldown:100,
-      },
       equiped: "mono"
     }
   }
@@ -301,98 +313,13 @@ class Player {
       this.cooldown.weapon = true;
     setTimeout(() => {
         this.cooldown.weapon = false;
-    }, this.weapons[this.weapons.equiped].cooldown);
+    }, weapons[this.weapons.equiped].cooldown);
     var velocity;
     const angle = Math.atan2(clientY - canvas.height / 2, clientX - canvas.width / 2);
     shoot_sound.pause();
     shoot_sound.currentTime = 0;
     shoot_sound.play();
-
-    switch (this.weapons.equiped) {
-      case "flame":
-        for (let nangle = angle - (Math.PI / 18); nangle <= angle + (Math.PI / 18); nangle += (Math.PI / 36)) {
-          projectiles.push(new Flame(this.x, this.y, 5, velocity = {
-            x: Math.cos(nangle),
-            y: Math.sin(nangle)
-          }));
-        }
-        break;
-      case "void":
-        voidProjectiles.push(new VoidProjectile(this.x, this.y, 5, 'purple', velocity = {
-          x: Math.cos(angle) * 4,
-          y: Math.sin(angle) * 4
-        }));
-        break;
-      case "spray":
-        for (let i = 0; i < 4; i++) {
-          setTimeout(() => {
-            const angleOffset = (Math.random() * 30 - 15) * (Math.PI / 180); // +- 15 degrees in radians
-            let newangle = angle + angleOffset;
-            projectiles.push(new Projectile(this.x, this.y, 5, 'white', velocity = {
-              x: Math.cos(newangle) * 4,
-              y: Math.sin(newangle) * 4
-            }));
-          }, i * 50); // 50ms delay between each bullet
-        }
-        break;
-      case "homing":
-        projectiles.push(new HomingProjectile(this.x, this.y, 5, 'white', velocity = {
-          x: Math.cos(angle) * 4,
-          y: Math.sin(angle) * 4
-        }));
-        break;
-      case "mono":
-        projectiles.push(new Projectile(this.x, this.y, 5, 'white', velocity = {
-          x: Math.cos(angle) * 4,
-          y: Math.sin(angle) * 4
-        }));
-        break;
-      case "flank":
-        projectiles.push(new Projectile(this.x, this.y, 5, 'white', velocity = {
-          x: Math.cos(angle + Math.PI) * 4,
-          y: Math.sin(angle + Math.PI) * 4
-        }));
-        projectiles.push(new Projectile(this.x, this.y, 5, 'white', velocity = {
-          x: Math.cos(angle) * 4,
-          y: Math.sin(angle) * 4
-        }));
-        break;
-      case "twin":
-        projectiles.push(new Projectile(this.x + Math.cos(angle + Math.PI / 2) * 6, this.y + Math.sin(angle + Math.PI / 2) * 6, 5, 'white', velocity = {
-          x: Math.cos(angle) * 4,
-          y: Math.sin(angle) * 4
-        }));
-
-        projectiles.push(new Projectile(this.x - Math.cos(angle + Math.PI / 2) * 6, this.y - Math.sin(angle + Math.PI / 2) * 6, 5, 'white', velocity = {
-          x: Math.cos(angle) * 4,
-          y: Math.sin(angle) * 4
-        }));
-        break;
-      case "triplet":
-        projectiles.push(new Projectile(this.x, this.y, 5, 'white', velocity = {
-          x: Math.cos(angle) * 4,
-          y: Math.sin(angle) * 4
-        }));
-        projectiles.push(new Projectile(this.x, this.y, 5, 'white', velocity = {
-          x: Math.cos(angle + Math.PI * 2 / 3) * 4,
-          y: Math.sin(angle + Math.PI * 2 / 3) * 4
-        }));
-        projectiles.push(new Projectile(this.x, this.y, 5, 'white', velocity = {
-          x: Math.cos(angle + Math.PI * 4 / 3) * 4,
-          y: Math.sin(angle + Math.PI * 4 / 3) * 4
-        }));
-        break;
-      case "helix":
-        projectiles.push(new SinWaveProjectile(this.x, this.y, 5, 'white', velocity = {
-          x: Math.cos(angle) * 4,
-          y: Math.sin(angle) * 4
-        },5,mousex,mousey,true))
-        projectiles.push(new SinWaveProjectile(this.x, this.y, 5, 'white', velocity = {
-          x: Math.cos(angle) * 4,
-          y: Math.sin(angle) * 4
-        },5,mousex,mousey))
-        break;
-    }
+    fireWeapon(this,this.weapons.equiped,projectiles,angle)
   };
 }
 
