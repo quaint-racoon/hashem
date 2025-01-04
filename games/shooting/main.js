@@ -825,7 +825,7 @@ function buy(item) {
       popup(`you need ${item.price} game.points to buy ${item.name}`)
     }
   }
-  if (player.weapons[item.name].owned === true) {
+  if (weapons[item.name].owned === true) {
     document.getElementById(player.weapons.equiped).style.backgroundColor = "#73ff00"
     document.getElementById(item.name).style.backgroundColor = "blue"
     player.weapons.equiped = item.name
