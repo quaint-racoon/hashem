@@ -945,7 +945,6 @@ function animate(currentTime) {
       const dist = Math.hypot(projectile.x - enemy.x, projectile.y - enemy.y)
       if (dist - enemy.radius - projectile.radius < 1) {
         enemy.takeDamage(projectile.damage)
-        if(tempdead.includes(enemy)) return enemy;
         setTimeout(()=>{
           projectiles.splice(pindex, 1)
         },0)
