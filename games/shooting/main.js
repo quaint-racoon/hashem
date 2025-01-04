@@ -1088,7 +1088,7 @@ function endgame() {
   clearInterval(enemyid)
   endscreen.style.display = "flex"
   endscore.innerHTML = game.points
-
+  game.paused = true
 }
 function pausegame() {
   if (endscreen.style.display != "none") return
