@@ -15,7 +15,7 @@ const explode_sound = new Audio('explode.wav')
 const hit_sound = new Audio('hit.wav')
 const background_sound = new Audio('background.mp3')
 const upgrade_sound = new Audio('upgrade.mp3')
-const grid = 25
+const grid = 100
 // 7x7 so grid would be 7 
 //grids' can only be square!!
 const tile_size = 50
