@@ -809,9 +809,9 @@ function popup(text) {
   setTimeout(() => { p.remove() }, 3000)
 }
 function buy(item) {
-  if (player.weapons[item.name].owned === false) {
+  if (weapons[item.name].owned === false) {
     if (game.points >= item.price) {
-      player.weapons[item.name].owned = true
+      weapons[item.name].owned = true
       game.points -= item.price
       score.innerHTML = game.points
       endscore.innerHTML = game.points
