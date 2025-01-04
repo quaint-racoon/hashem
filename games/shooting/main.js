@@ -752,9 +752,9 @@ class ShootingEnemy extends Enemy {
         y: Math.sin(angle) * this.speed
     };
 
-    // Create and push new projectile
+    // Create and push new Projectile
     enemyProjectiles.push(
-        new projectile(this.x, this.y, this.radius * 0.3, this.color, velocity)
+        new Projectile(this.x, this.y, this.radius * 0.3, this.color, velocity)
     );
   }
 }
