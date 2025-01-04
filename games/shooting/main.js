@@ -297,14 +297,14 @@ class Player {
         }));
         break;
       case "helix":
-        projectiles.push(new SinWaveProjectile(this.x, this.y, 2, 'white', velocity = {
+        projectiles.push(new SinWaveProjectile(this.x, this.y, 5, 'white', velocity = {
           x: Math.cos(angle) * 4,
           y: Math.sin(angle) * 4
-        },10,mousex,mousey,true))
-        projectiles.push(new SinWaveProjectile(this.x, this.y, 2, 'white', velocity = {
+        },5,mousex,mousey,true))
+        projectiles.push(new SinWaveProjectile(this.x, this.y, 5, 'white', velocity = {
           x: Math.cos(angle) * 4,
           y: Math.sin(angle) * 4
-        },10,mousex,mousey))
+        },5,mousex,mousey))
         break;
     }
   };
