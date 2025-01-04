@@ -1134,6 +1134,7 @@ async function startgame() {
   rampage()
   spawnEnemies()
   animationid = requestAnimationFrame(animate)
+  game.paused = false
 }
 ctx.fillStyle = 'black'
 ctx.fillRect(0, 0, canvas.width, canvas.height)
