@@ -193,7 +193,7 @@ function fireWeapon(shooter, weapon,array, angle,buff=1){
           setTimeout(() => {
             const angleOffset = (Math.random() * 30 - 15) * (Math.PI / 180); // +- 15 degrees in radians
             let nangle = angle + angleOffset;
-            array.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
+            array.push(new Projectile(shooter.x, shooter.y, 5, shooter.color, velocity = {
               x: Math.cos(nangle) * 4 * buff,
               y: Math.sin(nangle) * 4 * buff
             }));
@@ -201,58 +201,58 @@ function fireWeapon(shooter, weapon,array, angle,buff=1){
         }
         break;
       case "homing":
-        array.push(new HomingProjectile(shooter.x, shooter.y, 5, 'white', velocity = {
+        array.push(new HomingProjectile(shooter.x, shooter.y, 5, shooter.color, velocity = {
           x: Math.cos(angle) * 4 * buff,
           y: Math.sin(angle) * 4 * buff
         }));
         break;
       case "mono":
-        array.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
+        array.push(new Projectile(shooter.x, shooter.y, 5, shooter.color, velocity = {
           x: Math.cos(angle) * 4 * buff,
           y: Math.sin(angle) * 4 * buff
         }));
         break;
       case "flank":
-        array.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
+        array.push(new Projectile(shooter.x, shooter.y, 5, shooter.color, velocity = {
           x: Math.cos(angle + Math.PI) * 4 * buff,
           y: Math.sin(angle + Math.PI) * 4 * buff
         }));
-        array.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
+        array.push(new Projectile(shooter.x, shooter.y, 5, shooter.color, velocity = {
           x: Math.cos(angle) * 4 * buff,
           y: Math.sin(angle) * 4 * buff
         }));
         break;
       case "twin":
-        array.push(new Projectile(shooter.x + Math.cos(angle + Math.PI / 2) * 6, shooter.y + Math.sin(angle + Math.PI / 2) * 6, 5, 'white', velocity = {
+        array.push(new Projectile(shooter.x + Math.cos(angle + Math.PI / 2) * 6, shooter.y + Math.sin(angle + Math.PI / 2) * 6, 5, shooter.color, velocity = {
           x: Math.cos(angle) * 4 * buff,
           y: Math.sin(angle) * 4 * buff
         }));
 
-        array.push(new Projectile(shooter.x - Math.cos(angle + Math.PI / 2) * 6, shooter.y - Math.sin(angle + Math.PI / 2) * 6, 5, 'white', velocity = {
+        array.push(new Projectile(shooter.x - Math.cos(angle + Math.PI / 2) * 6, shooter.y - Math.sin(angle + Math.PI / 2) * 6, 5, shooter.color, velocity = {
           x: Math.cos(angle) * 4 * buff,
           y: Math.sin(angle) * 4 * buff
         }));
         break;
       case "triplet":
-        array.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
+        array.push(new Projectile(shooter.x, shooter.y, 5, shooter.color, velocity = {
           x: Math.cos(angle) * 4 * buff,
           y: Math.sin(angle) * 4 * buff
         }));
-        array.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
+        array.push(new Projectile(shooter.x, shooter.y, 5, shooter.color, velocity = {
           x: Math.cos(angle + Math.PI * 2 / 3) * 4 * buff,
           y: Math.sin(angle + Math.PI * 2 / 3) * 4 * buff
         }));
-        array.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
+        array.push(new Projectile(shooter.x, shooter.y, 5, shooter.color, velocity = {
           x: Math.cos(angle + Math.PI * 4 / 3) * 4 * buff,
           y: Math.sin(angle + Math.PI * 4 / 3) * 4 * buff
         }));
         break;
       case "helix":
-        array.push(new SinWaveProjectile(shooter.x, shooter.y, 5, 'white', velocity = {
+        array.push(new SinWaveProjectile(shooter.x, shooter.y, 5, shooter.color, velocity = {
           x: Math.cos(angle) * 4 * buff,
           y: Math.sin(angle) * 4 * buff
         },5,mousex,mousey,true))
-        array.push(new SinWaveProjectile(shooter.x, shooter.y, 5, 'white', velocity = {
+        array.push(new SinWaveProjectile(shooter.x, shooter.y, 5, shooter.color, velocity = {
           x: Math.cos(angle) * 4 * buff,
           y: Math.sin(angle) * 4 * buff
         },5,mousex,mousey))
@@ -388,8 +388,8 @@ class Projectile {
 class SinWaveProjectile extends Projectile {
   constructor(x, y, radius, color, velocity, damage, targetX, targetY, flipSinWave = false) {
     super(x, y, radius, color, velocity, damage);
-    this.targetX = targetX;
-    this.targetY = targetY;
+    this.targetX = targetX || (x+velocity.x);
+    this.targetY = targetY || (y+velocity.y);
     this.startY = y;
     this.startX = x;
     this.amplitude = 4;
