@@ -144,7 +144,7 @@ function calculateTotalWeight() {
 
 const totalWeight = calculateTotalWeight();
 
-function getRandomWeaponName() {
+function getRandomWeapon() {
   const randomValue = Math.random() * totalWeight;
 
   let cumulativeWeight = 0;
