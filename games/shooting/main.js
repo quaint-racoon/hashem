@@ -176,7 +176,7 @@ function fireWeapon(shooter, weapon,array, angle,buff=1){
   switch (weapon) {
       case "flame":
         for (let nangle = angle - (Math.PI / 18); nangle <= angle + (Math.PI / 18); nangle += (Math.PI / 36)) {
-          projectiles.push(new Flame(shooter.x, shooter.y, 5, velocity = {
+          array.push(new Flame(shooter.x, shooter.y, 5, velocity = {
             x: Math.cos(nangle) * buff,
             y: Math.sin(nangle) * buff
           }));
@@ -193,7 +193,7 @@ function fireWeapon(shooter, weapon,array, angle,buff=1){
           setTimeout(() => {
             const angleOffset = (Math.random() * 30 - 15) * (Math.PI / 180); // +- 15 degrees in radians
             let nangle = angle + angleOffset;
-            projectiles.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
+            array.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
               x: Math.cos(nangle) * 4 * buff,
               y: Math.sin(nangle) * 4 * buff
             }));
@@ -201,58 +201,58 @@ function fireWeapon(shooter, weapon,array, angle,buff=1){
         }
         break;
       case "homing":
-        projectiles.push(new HomingProjectile(shooter.x, shooter.y, 5, 'white', velocity = {
+        array.push(new HomingProjectile(shooter.x, shooter.y, 5, 'white', velocity = {
           x: Math.cos(angle) * 4 * buff,
           y: Math.sin(angle) * 4 * buff
         }));
         break;
       case "mono":
-        projectiles.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
+        array.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
           x: Math.cos(angle) * 4 * buff,
           y: Math.sin(angle) * 4 * buff
         }));
         break;
       case "flank":
-        projectiles.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
+        array.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
           x: Math.cos(angle + Math.PI) * 4 * buff,
           y: Math.sin(angle + Math.PI) * 4 * buff
         }));
-        projectiles.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
+        array.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
           x: Math.cos(angle) * 4 * buff,
           y: Math.sin(angle) * 4 * buff
         }));
         break;
       case "twin":
-        projectiles.push(new Projectile(shooter.x + Math.cos(angle + Math.PI / 2) * 6, shooter.y + Math.sin(angle + Math.PI / 2) * 6, 5, 'white', velocity = {
+        array.push(new Projectile(shooter.x + Math.cos(angle + Math.PI / 2) * 6, shooter.y + Math.sin(angle + Math.PI / 2) * 6, 5, 'white', velocity = {
           x: Math.cos(angle) * 4 * buff,
           y: Math.sin(angle) * 4 * buff
         }));
 
-        projectiles.push(new Projectile(shooter.x - Math.cos(angle + Math.PI / 2) * 6, shooter.y - Math.sin(angle + Math.PI / 2) * 6, 5, 'white', velocity = {
+        array.push(new Projectile(shooter.x - Math.cos(angle + Math.PI / 2) * 6, shooter.y - Math.sin(angle + Math.PI / 2) * 6, 5, 'white', velocity = {
           x: Math.cos(angle) * 4 * buff,
           y: Math.sin(angle) * 4 * buff
         }));
         break;
       case "triplet":
-        projectiles.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
+        array.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
           x: Math.cos(angle) * 4 * buff,
           y: Math.sin(angle) * 4 * buff
         }));
-        projectiles.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
+        array.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
           x: Math.cos(angle + Math.PI * 2 / 3) * 4 * buff,
           y: Math.sin(angle + Math.PI * 2 / 3) * 4 * buff
         }));
-        projectiles.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
+        array.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
           x: Math.cos(angle + Math.PI * 4 / 3) * 4 * buff,
           y: Math.sin(angle + Math.PI * 4 / 3) * 4 * buff
         }));
         break;
       case "helix":
-        projectiles.push(new SinWaveProjectile(shooter.x, shooter.y, 5, 'white', velocity = {
+        array.push(new SinWaveProjectile(shooter.x, shooter.y, 5, 'white', velocity = {
           x: Math.cos(angle) * 4 * buff,
           y: Math.sin(angle) * 4 * buff
         },5,mousex,mousey,true))
-        projectiles.push(new SinWaveProjectile(shooter.x, shooter.y, 5, 'white', velocity = {
+        array.push(new SinWaveProjectile(shooter.x, shooter.y, 5, 'white', velocity = {
           x: Math.cos(angle) * 4 * buff,
           y: Math.sin(angle) * 4 * buff
         },5,mousex,mousey))
