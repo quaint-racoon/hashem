@@ -144,19 +144,31 @@ function calculateTotalWeight() {
 
 const totalWeight = calculateTotalWeight();
 
-function getRandomWeapon() {
+function getRandomWeaponName() {
   const randomValue = Math.random() * totalWeight;
 
   let cumulativeWeight = 0;
+  let selectedWeaponName; 
+
   for (const weaponName in weapons) {
+    if (weaponName === "void") { 
+      continue; 
+    }
+
     cumulativeWeight += weaponWeights[weaponName];
     if (randomValue <= cumulativeWeight) {
-      return weapons[weaponName];
+      selectedWeaponName = weaponName; 
+      break; 
     }
   }
 
-  // Fallback mechanism
-  return weapons[Object.keys(weapons)[Object.keys(weapons).length - 1]]; 
+  // If "void" was the only option, select a different weapon
+  if (!selectedWeaponName) { 
+    const weaponNamesWithoutVoid = Object.keys(weapons).filter(name => name !== "void");
+    selectedWeaponName = weaponNamesWithoutVoid[Math.floor(Math.random() * weaponNamesWithoutVoid.length)]; 
+  }
+
+  return selectedWeaponName; 
 }
 
 
