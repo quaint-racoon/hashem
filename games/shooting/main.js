@@ -47,7 +47,7 @@ const weapons = {
   mono: {
     owned: true,
     cooldown: 200,
-    price: 0
+    price: 500
   },
   flank: {
     owned: false,
