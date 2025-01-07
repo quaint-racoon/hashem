@@ -132,89 +132,117 @@ function boxcircleadjust(circle, rect) {
   }
 
 }
-function fireWeapon(shooter, weapon,array, angle){
+const weaponWeights = {};
+for (const weaponName in weapons) {
+  const weapon = weapons[weaponName];
+  weaponWeights[weaponName] = Math.max(1, 10000 / (weapon.price + 1)); 
+}
+
+function calculateTotalWeight() {
+  return Object.values(weaponWeights).reduce((sum, weight) => sum + weight, 0);
+}
+
+const totalWeight = calculateTotalWeight();
+
+function getRandomWeapon() {
+  const randomValue = Math.random() * totalWeight;
+
+  let cumulativeWeight = 0;
+  for (const weaponName in weapons) {
+    cumulativeWeight += weaponWeights[weaponName];
+    if (randomValue <= cumulativeWeight) {
+      return weapons[weaponName];
+    }
+  }
+
+  // Fallback mechanism
+  return weapons[Object.keys(weapons)[Object.keys(weapons).length - 1]]; 
+}
+
+
+function fireWeapon(shooter, weapon,array, angle,buff=1){
   switch (weapon) {
       case "flame":
         for (let nangle = angle - (Math.PI / 18); nangle <= angle + (Math.PI / 18); nangle += (Math.PI / 36)) {
           projectiles.push(new Flame(shooter.x, shooter.y, 5, velocity = {
-            x: Math.cos(nangle),
-            y: Math.sin(nangle)
+            x: Math.cos(nangle) * buff,
+            y: Math.sin(nangle) * buff
           }));
         }
         break;
       case "void":
         voidProjectiles.push(new VoidProjectile(shooter.x, shooter.y, 5, 'purple', velocity = {
-          x: Math.cos(angle) * 4,
-          y: Math.sin(angle) * 4
+          x: Math.cos(angle) * 4 * buff,
+          y: Math.sin(angle) * 4 * buff
         }));
         break;
       case "spray":
         for (let i = 0; i < 4; i++) {
           setTimeout(() => {
             const angleOffset = (Math.random() * 30 - 15) * (Math.PI / 180); // +- 15 degrees in radians
-            let newangle = angle + angleOffset;
+            let nangle = angle + angleOffset;
             projectiles.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
-              x: Math.cos(newangle) * 4,
-              y: Math.sin(newangle) * 4
+              x: Math.cos(nangle) * 4 * buff,
+              y: Math.sin(nangle) * 4 * buff
             }));
           }, i * 50); // 50ms delay between each bullet
         }
         break;
       case "homing":
         projectiles.push(new HomingProjectile(shooter.x, shooter.y, 5, 'white', velocity = {
-          x: Math.cos(angle) * 4,
-          y: Math.sin(angle) * 4
+          x: Math.cos(angle) * 4 * buff,
+          y: Math.sin(angle) * 4 * buff
         }));
         break;
       case "mono":
         projectiles.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
-          x: Math.cos(angle) * 4,
-          y: Math.sin(angle) * 4
+          x: Math.cos(angle) * 4 * buff,
+          y: Math.sin(angle) * 4 * buff
         }));
         break;
       case "flank":
         projectiles.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
-          x: Math.cos(angle + Math.PI) * 4,
-          y: Math.sin(angle + Math.PI) * 4
+          x: Math.cos(angle + Math.PI) * 4 * buff,
+          y: Math.sin(angle + Math.PI) * 4 * buff
         }));
         projectiles.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
-          x: Math.cos(angle) * 4,
-          y: Math.sin(angle) * 4
+          x: Math.cos(angle) * 4 * buff,
+          y: Math.sin(angle) * 4 * buff
         }));
         break;
       case "twin":
         projectiles.push(new Projectile(shooter.x + Math.cos(angle + Math.PI / 2) * 6, shooter.y + Math.sin(angle + Math.PI / 2) * 6, 5, 'white', velocity = {
-          x: Math.cos(angle) * 4,
-          y: Math.sin(angle) * 4
+          x: Math.cos(angle) * 4 * buff,
+          y: Math.sin(angle) * 4 * buff
         }));
 
         projectiles.push(new Projectile(shooter.x - Math.cos(angle + Math.PI / 2) * 6, shooter.y - Math.sin(angle + Math.PI / 2) * 6, 5, 'white', velocity = {
-          x: Math.cos(angle) * 4,
-          y: Math.sin(angle) * 4
+          x: Math.cos(angle) * 4 * buff,
+          y: Math.sin(angle) * 4 * buff
         }));
         break;
       case "triplet":
         projectiles.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
-          x: Math.cos(angle) * 4,
-          y: Math.sin(angle) * 4
+          x: Math.cos(angle) * 4 * buff,
+          y: Math.sin(angle) * 4 * buff
         }));
         projectiles.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
-          x: Math.cos(angle + Math.PI * 2 / 3) * 4,
-          y: Math.sin(angle + Math.PI * 2 / 3) * 4
+          x: Math.cos(angle + Math.PI * 2 / 3) * 4 * buff,
+          y: Math.sin(angle + Math.PI * 2 / 3) * 4 * buff
         }));
         projectiles.push(new Projectile(shooter.x, shooter.y, 5, 'white', velocity = {
-          x: Math.cos(angle + Math.PI * 4 / 3) * 4,
-          y: Math.sin(angle + Math.PI * 4 / 3) * 4
+          x: Math.cos(angle + Math.PI * 4 / 3) * 4 * buff,
+          y: Math.sin(angle + Math.PI * 4 / 3) * 4 * buff
         }));
         break;
       case "helix":
         projectiles.push(new SinWaveProjectile(shooter.x, shooter.y, 5, 'white', velocity = {
-          x: Math.cos(angle) * 4,
-          y: Math.sin(angle) * 4
+          x: Math.cos(angle) * 4 * buff,
+          y: Math.sin(angle) * 4 * buff
         },5,mousex,mousey,true))
         projectiles.push(new SinWaveProjectile(shooter.x, shooter.y, 5, 'white', velocity = {
-          x: Math.cos(angle) * 4,
-          y: Math.sin(angle) * 4
+          x: Math.cos(angle) * 4 * buff,
+          y: Math.sin(angle) * 4 * buff
         },5,mousex,mousey))
         break;
     }
@@ -627,13 +655,14 @@ class Particle {
 }
 
 class ShootingEnemy extends Enemy {
-  constructor(x, y, radius, color, velocity, buff, firingRate) {
+  constructor(x, y, radius, color, velocity, buff, firingRate,weapon) {
     super(x, y, radius, color, velocity, buff);
     this.firingRate = firingRate;
     this.speed = 5;
     this.radius = radius
     this.color = "red"
     this.locked = true
+    this.weapon = weapon
   }
 
   update() {
@@ -673,16 +702,7 @@ class ShootingEnemy extends Enemy {
         playerPredictedPosition.x - this.x
     );
 
-    // Calculate velocity
-    const velocity = {
-        x: Math.cos(angle) * this.speed,
-        y: Math.sin(angle) * this.speed
-    };
-
-    // Create and push new Projectile
-    enemyProjectiles.push(
-        new Projectile(this.x, this.y, this.radius * 0.3, this.color, velocity)
-    );
+    fireWeapon(this,this.weapon,enemyProjectiles,angle,this.speed)
   }
 }
 
@@ -761,7 +781,8 @@ function spawnEnemies() {
         y: Math.sin(angle)
       };
       const firingRate = Math.floor(Math.random() * (200 - 100) + 100);
-      enemies.push(new ShootingEnemy(x, y, radius, color, velocity, speedbuff, firingRate));
+      const weapon = getRandomWeapon()
+      enemies.push(new ShootingEnemy(x, y, radius, color, velocity, speedbuff, firingRate, weapon));
     } else {
       // spawn normal enemy
       const radius = Math.random() * (30 - 6) + 6;
