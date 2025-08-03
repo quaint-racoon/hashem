@@ -1222,3 +1222,4 @@ if (/Mobi|Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(n
     canvas.height = innerHeight
   }
 }
+console.log("%cDONT TYPE ANYTHING HERE IF YOU DONT KNOW WHAT YOUR DOING!", "color:#ffffff;background-color:#e61010;font-size:50px;")
