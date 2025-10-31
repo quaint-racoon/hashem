@@ -58,21 +58,26 @@
                 
                 <!-- --- OBJECT TOOLS SECTION --- -->
                 <h2 class="text-xl font-semibold text-gray-700 mb-2 border-b pb-2 mt-4">Object Tools</h2>
+                
+                <!-- NEW: Placement Instruction Message -->
+                <div id="placement-message" class="hidden p-3 bg-blue-100 text-blue-700 text-sm font-semibold rounded-lg border border-blue-300">
+                    Click anywhere on the canvas to place the object!
+                </div>
 
                 <!-- Text Button -->
                 <button id="add-text-button" class="w-full py-2 px-4 bg-purple-500 hover:bg-purple-600 text-white font-semibold rounded-lg shadow-md transition duration-150 transform hover:scale-[1.01]">
                     Add Text Label
                 </button>
                 
-                <!-- Image Upload (Now uses Firebase Storage) -->
+                <!-- Image Upload (Now uses Base64 in RTDB) -->
                 <div class="mt-2 p-3 border border-gray-200 rounded-lg shadow-inner bg-gray-50">
-                    <label for="image-upload" class="block text-sm font-medium text-gray-700 mb-1">Upload Image (Uses Storage)</label>
+                    <label for="image-upload" class="block text-sm font-medium text-gray-700 mb-1">Upload Image (Max 100KB)</label>
                     <input type="file" id="image-upload" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-100 file:text-purple-700 hover:file:bg-purple-200">
                     <button id="upload-image-button" disabled class="mt-2 w-full py-2 px-4 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg shadow-md transition duration-150 transform hover:scale-[1.01] disabled:bg-green-300">
-                        Insert Image to Board
+                        Select and Place Image
                     </button>
-                    <!-- UPDATED WARNING TEXT -->
-                    <p class="text-xs text-green-700 mt-1">Images are uploaded to **Firebase Storage**, location saved in RTDB.</p>
+                    <!-- UPDATED WARNING TEXT for RTDB/Base64 -->
+                    <p class="text-xs text-red-700 mt-1">WARNING: Image is stored directly in the RTDB as Base64. Use small images!</p>
                 </div>
                 <!-- --- END OBJECT TOOLS SECTION --- -->
 
@@ -116,9 +121,8 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         // RTDB Import
-        import { getDatabase, ref, onValue, push, remove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
-        // NEW Storage Import
-        import { getStorage, ref as storageRef, uploadString, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        import { getDatabase, ref, onValue, push, remove, set } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+        // REMOVED Storage Import
 
         // Global variables provided by the Canvas environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -127,7 +131,7 @@
             authDomain: "whiteboard-7eab0.firebaseapp.com",
             databaseURL: "https://whiteboard-7eab0-default-rtdb.firebaseio.com",
             projectId: "whiteboard-7eab0",
-            storageBucket: "whiteboard-7eab0.firebasestorage.app",
+            // Removed storageBucket
             messagingSenderId: "564827963715",
             appId: "1:564827963715:web:fbbacaa3168852f1c86ff6",
             measurementId: "G-KVHX7GG6TE"
@@ -135,11 +139,14 @@
 
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        // UPDATED: Added dbStorage
-        let dbRTDB, auth, dbStorage, userId = null; 
+        // UPDATED: Removed dbStorage
+        let dbRTDB, auth, userId = null; 
         let isDrawing = false;
         let currentStroke = []; 
         let lastTimestamp = 0;
+        
+        // NEW GLOBAL STATE FOR PLACEMENT
+        let objectToPlace = null; 
 
         // State Variables for Multi-Board and Data
         const BOARD_COUNT = 9;
@@ -167,6 +174,7 @@
         // References for the UI containers
         const boardDisplayArea = document.getElementById('board-display-area'); 
         const backButton = document.getElementById('back-to-overview-button'); 
+        const placementMessage = document.getElementById('placement-message');
 
 
         // --- Firebase Initialization and Auth ---
@@ -182,7 +190,7 @@
                 const app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 dbRTDB = getDatabase(app); 
-                dbStorage = getStorage(app); // NEW: Storage Initialization
+                // Removed dbStorage initialization
 
                 await new Promise(resolve => {
                     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -250,9 +258,36 @@
 
             return { x, y, nx: normalizedX, ny: normalizedY };
         }
+        
+        // --- NEW UTILITY FOR PLACEMENT ---
+        /**
+         * Converts screen coordinates (mouse/touch) to the internal 0-1000 normalized board coordinates.
+         */
+        function screenToCanvas(clientX, clientY) {
+            if (!currentCanvas) return { x: 500, y: 500 }; // Fallback to center
+            
+            const rect = currentCanvas.getBoundingClientRect();
+            
+            // 1. Calculate click position relative to the canvas element
+            const relativeX = clientX - rect.left;
+            const relativeY = clientY - rect.top;
+
+            // 2. Normalize to the 0-1000 internal board coordinates
+            const normalizedX = (relativeX / currentCanvas.width) * 1000;
+            const normalizedY = (relativeY / currentCanvas.height) * 1000;
+            
+            // Limit to the board bounds
+            return { 
+                x: Math.max(0, Math.min(1000, normalizedX)), 
+                y: Math.max(0, Math.min(1000, normalizedY)) 
+            };
+        }
+
 
         function handleMouseDown(event) {
             if (!currentCanvas || currentBoardId === null) return;
+            
+            if (objectToPlace) return; // Block drawing if in placement mode
             
             if (event.button === 2) return; 
             isDrawing = true;
@@ -319,18 +354,18 @@
             const imageUpload = document.getElementById('image-upload');
             const uploadImageButton = document.getElementById('upload-image-button');
             
-            addTextButton.addEventListener('click', promptAndAddText);
+            addTextButton.addEventListener('click', prepareTextPlacement);
             
             imageUpload.addEventListener('change', () => {
                 // Enable button only if a file is selected
                 uploadImageButton.disabled = imageUpload.files.length === 0;
             });
             
-            uploadImageButton.addEventListener('click', handleImageUpload);
+            uploadImageButton.addEventListener('click', prepareImagePlacement);
         }
         
         /**
-         * Attaches drawing handlers to the newly created zoomed canvas.
+         * Attaches drawing and PLACEMENT handlers to the newly created zoomed canvas.
          */
         function setupZoomedCanvasListeners(targetCanvas) {
             targetCanvas.onmousedown = handleMouseDown;
@@ -341,13 +376,54 @@
             targetCanvas.ontouchmove = handleMouseMove;
             targetCanvas.ontouchend = handleMouseUp;
             targetCanvas.ontouchcancel = handleMouseUp;
+            
+            // NEW: Listener for object placement
+            targetCanvas.addEventListener('click', handleObjectPlacementClick);
         }
+        
+        /**
+         * Handles the click event for object placement when in placement mode.
+         */
+        function handleObjectPlacementClick(event) {
+             if (!objectToPlace || currentBoardId === null) return;
+             
+             // 1. Convert to normalized board coordinates
+             const pos = screenToCanvas(event.clientX, event.clientY);
+             
+             // 2. Finalize object data with position
+             const newObject = {
+                 ...objectToPlace, // type, text/src, etc.
+                 userId: userId,
+                 x: pos.x,
+                 y: pos.y,
+                 createdAt: Date.now(),
+             };
+             
+             // 3. Save to RTDB
+             saveObject(currentBoardId, newObject);
+             
+             // 4. Reset placement mode
+             objectToPlace = null;
+             placementMessage.classList.add('hidden');
+             
+             // Clear image input if it was an image
+             const fileInput = document.getElementById('image-upload');
+             fileInput.value = '';
+             document.getElementById('upload-image-button').disabled = true;
+
+             showTemporaryMessage('Object placed. You can now draw or place another object.', 'bg-green-100 text-green-700 border-green-300');
+        }
+
 
         /**
          * Switches the view between the 9-quadrant overview and a single zoomed board.
          * @param {number|null} boardId - The ID of the board (1-9) to zoom into, or null for overview.
          */
         function switchBoard(boardId) {
+             // Reset placement mode on switch
+            objectToPlace = null;
+            placementMessage.classList.add('hidden');
+
             // If the user clicks 'Back' or a resize event happens, go to overview
             if (boardId === null || isNaN(boardId) || boardId < 1 || boardId > BOARD_COUNT) {
                 renderOverview();
@@ -413,7 +489,14 @@
             const dbRef = getRTDBRef(boardId);
 
             try {
-                await push(dbRef, objectData);
+                // Use push for new objects
+                if (!objectData.id) {
+                    await push(dbRef, objectData);
+                } else {
+                     // Use set for editing/updating existing objects (though we don't have an edit UI yet)
+                     const itemRef = ref(dbRTDB, `${dbRef.toString()}/${objectData.id}`);
+                     await set(itemRef, objectData);
+                }
                 showTemporaryMessage(`${objectData.type.toUpperCase()} object saved to Board ${boardId}.`, "bg-green-100 text-green-700 border-green-300");
             } catch (e) {
                 console.error("Error pushing data to RTDB: ", e);
@@ -444,40 +527,33 @@
             await saveObject(currentBoardId, strokeData);
         }
 
-        // --- Text Logic ---
+        // --- Text Placement Logic ---
 
-        function promptAndAddText() {
+        function prepareTextPlacement() {
             if (currentBoardId === null) {
                 showTemporaryMessage("Please zoom into a board to add text.", "bg-yellow-100 text-yellow-700 border-yellow-300");
                 return;
             }
 
-            // Use a simple prompt for text input
-            const textInput = window.prompt("Enter the text you want to add (will be placed in the center):", "Collaborative Text");
+            const textInput = window.prompt("Enter the text you want to add:", "Collaborative Text");
             
             if (textInput && textInput.trim().length > 0) {
-                // Default position to center of the canvas
-                const normalizedX = 500;
-                const normalizedY = 500;
-
-                const textObject = { 
+                // Prepare object data, but wait for position from canvas click
+                objectToPlace = { 
                     type: 'text',
-                    userId: userId,
                     text: textInput.trim(),
-                    x: normalizedX,
-                    y: normalizedY,
                     color: colorPicker.value,
                     size: parseInt(sizeSlider.value), // Use stroke size for font size
-                    createdAt: Date.now(),
                 };
-
-                saveObject(currentBoardId, textObject);
+                placementMessage.classList.remove('hidden');
+                showTemporaryMessage('Click on the canvas to place your text.', 'bg-blue-100 text-blue-700 border-blue-300');
             }
         }
         
-        // --- Image Logic (Now uses Firebase Storage) ---
+        // --- Image Placement Logic (RTDB/Base64 Only) ---
+        const MAX_IMAGE_SIZE_BYTES = 1024 * 100; // 100 KB limit
 
-        function handleImageUpload() {
+        function prepareImagePlacement() {
             if (currentBoardId === null) {
                 showTemporaryMessage("Please zoom into a board to upload an image.", "bg-yellow-100 text-yellow-700 border-yellow-300");
                 return;
@@ -488,56 +564,38 @@
             
             if (!file) return;
 
+            if (file.size > MAX_IMAGE_SIZE_BYTES) {
+                 showTemporaryMessage(`Image is too large (${(file.size / 1024).toFixed(1)} KB). Max size is 100 KB for RTDB storage.`, "bg-red-100 text-red-700 border-red-300");
+                 fileInput.value = '';
+                 document.getElementById('upload-image-button').disabled = true;
+                 return;
+            }
+
             const uploadImageButton = document.getElementById('upload-image-button');
-            uploadImageButton.textContent = 'Preparing...';
+            uploadImageButton.textContent = 'Processing...';
             uploadImageButton.disabled = true;
 
             const reader = new FileReader();
-            reader.onload = async function(e) {
+            reader.onload = function(e) {
                 const base64Image = e.target.result;
                 
-                // 1. Define storage paths and file IDs
-                const imageId = Date.now().toString() + '_' + Math.random().toString(36).substring(2, 9);
-                const storagePath = `images/${appId}/${currentBoardId}/${userId}/${imageId}`;
-                const storageReference = storageRef(dbStorage, storagePath);
+                // Prepare object data, but wait for position from canvas click
+                objectToPlace = {
+                    type: 'image',
+                    src: base64Image, // Store the Base64 string directly
+                };
+
+                uploadImageButton.textContent = 'Select and Place Image';
                 
-                try {
-                    uploadImageButton.textContent = 'Uploading file...';
-                    
-                    // 2. Upload Base64 string to Firebase Storage using the 'data_url' format
-                    const snapshot = await uploadString(storageReference, base64Image, 'data_url'); 
-                    
-                    // 3. Get the public download URL
-                    const downloadUrl = await getDownloadURL(snapshot.ref);
-                    
-                    uploadImageButton.textContent = 'Saving location...';
-                    
-                    // 4. Save metadata to RTDB
-                    const normalizedX = 500;
-                    const normalizedY = 500;
-                    
-                    const imageObject = {
-                        type: 'image',
-                        userId: userId,
-                        src: downloadUrl, // Store the public URL
-                        storagePath: storagePath, // Store path for deletion later
-                        x: normalizedX,
-                        y: normalizedY,
-                        createdAt: Date.now(),
-                    };
+                placementMessage.classList.remove('hidden');
+                showTemporaryMessage('Image processed. Click on the canvas to place it.', 'bg-blue-100 text-blue-700 border-blue-300');
 
-                    await saveObject(currentBoardId, imageObject); // saveObject function pushes to RTDB
-                    showTemporaryMessage("Image uploaded to Storage and registered on board.", "bg-green-100 text-green-700 border-green-300");
-
-                } catch (error) {
-                    console.error("Error during image upload to Firebase Storage:", error);
-                    showTemporaryMessage(`Image upload failed: ${error.message}`, "bg-red-100 text-red-700 border-red-300");
-                } finally {
-                    // Reset UI after saving attempt
-                    fileInput.value = ''; 
-                    uploadImageButton.textContent = 'Insert Image to Board';
-                    uploadImageButton.disabled = true;
-                }
+            };
+            reader.onerror = (e) => {
+                console.error("FileReader Error:", e);
+                showTemporaryMessage("Error reading file.", "bg-red-100 text-red-700 border-red-300");
+                uploadImageButton.textContent = 'Select and Place Image';
+                fileInput.value = '';
             };
             reader.readAsDataURL(file);
         }
@@ -634,7 +692,7 @@
                         let image = IMAGE_CACHE[imageKey];
                         
                         if (!image) {
-                            // Load image into cache
+                            // Load image into cache from Base64 source
                             image = new Image();
                             image.onload = () => {
                                 IMAGE_CACHE[imageKey] = image; 
@@ -649,7 +707,7 @@
                             image.onerror = () => {
                                  console.error("Error loading image for drawing:", imageKey);
                             };
-                            // object.src is now the Firebase Storage Download URL
+                            // object.src is the Base64 data URL
                             image.src = object.src; 
                         } 
                         
@@ -711,7 +769,7 @@
                     
                     const wrapper = document.getElementById(`quadrant-wrapper-${i}`);
                     wrapper.addEventListener('click', (e) => {
-                        const boardId = parseInt(e.currentTarget.dataset.boardId);
+                        const boardId = parseInt(e.currentTarget.dataset.board-id);
                         if (!isNaN(boardId)) {
                             switchBoard(boardId);
                         }
@@ -758,23 +816,7 @@
 
         // --- Delete/Undo Logic (Scoped to Current Zoomed Board) ---
         
-        /**
-         * Attempts to delete a file from Firebase Storage.
-         * @param {string} storagePath - The full path to the file in Storage.
-         */
-        async function deleteStorageFile(storagePath) {
-            if (!dbStorage || !storagePath) return;
-            try {
-                const fileRef = storageRef(dbStorage, storagePath);
-                await deleteObject(fileRef);
-                console.log(`Successfully deleted file from Storage: ${storagePath}`);
-            } catch (e) {
-                // Ignore 'storage/object-not-found' errors, but log others
-                if (e.code !== 'storage/object-not-found') {
-                    console.warn(`Could not delete storage file ${storagePath}:`, e);
-                }
-            }
-        }
+        // Removed deleteStorageFile as we are not using Firebase Storage anymore
 
         async function deleteLastChunk() {
             if (currentBoardId === null) {
@@ -801,11 +843,7 @@
                 const objectRef = ref(dbRTDB, `artifacts/${appId}/public/data/${RTDB_NODE_PREFIX}${currentBoardId}/${lastObjectKey}`);
 
                 try {
-                    // NEW: Delete the corresponding storage file if it's an image
-                    if (lastObject.type === 'image' && lastObject.storagePath) {
-                        await deleteStorageFile(lastObject.storagePath);
-                    }
-                    
+                    // No need to delete storage file, as images are Base64 in RTDB
                     await remove(objectRef);
                     showTemporaryMessage(`Deleted your last object (${lastObject.type}) from Board ${currentBoardId}.`, "bg-green-100 text-green-700 border-green-300");
                 } catch (e) {
@@ -830,7 +868,7 @@
 
             const boardStrokes = allStrokesByBoard[currentBoardId] || {};
             
-            // Find all objects for the current user to get their storage paths
+            // Find all objects for the current user
             const userObjectsToDelete = Object.keys(boardStrokes)
                 .filter(key => boardStrokes[key].userId === userId)
                 .map(key => ({...boardStrokes[key], id: key}));
@@ -844,10 +882,7 @@
             let successfulDeletes = 0;
 
             for (const object of userObjectsToDelete) {
-                // NEW: Delete the Storage file first if it's an image
-                if (object.type === 'image' && object.storagePath) {
-                    await deleteStorageFile(object.storagePath);
-                }
+                // No need to delete storage file
                 
                 // Then delete the RTDB record
                 const objectRef = ref(dbRTDB, `${rootPath}/${object.id}`);
