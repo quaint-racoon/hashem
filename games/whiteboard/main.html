@@ -73,9 +73,8 @@
 
             </div>
 
-            <!-- Canvas Area -->
-            <!-- Container to ensure centering of the square canvas -->
-            <div class="lg:w-3/4 bg-white p-1 rounded-xl shadow-lg border border-gray-100 order-1 lg:order-2 flex justify-center items-center">
+            <!-- Canvas Area (Fix: Added min-h-[70vh] to ensure vertical space for the square canvas) -->
+            <div class="lg:w-3/4 bg-white p-1 rounded-xl shadow-lg border border-gray-100 order-1 lg:order-2 flex justify-center items-center min-h-[70vh]">
                 <canvas id="whiteboard" class="rounded-lg"></canvas>
             </div>
         </div>
@@ -183,12 +182,10 @@
             const container = canvas.parentElement;
             const rect = container.getBoundingClientRect();
 
-            // Limit the height of the square to 75% of the viewport height,
-            // ensuring it leaves space for the controls and header.
-            const maxHeight = window.innerHeight * 0.75;
-
-            // The size of the square is the minimum of the container's width or the calculated maximum height.
-            const maxSize = Math.min(rect.width, maxHeight);
+            // Calculate the maximum space available for the square.
+            // We use Math.min(rect.width, rect.height) to ensure it fits the container as a square.
+            // The container now has a minimum height defined by CSS (min-h-[70vh]).
+            const maxSize = Math.min(rect.width, rect.height);
 
             // Set both width and height to the calculated square size
             canvas.width = maxSize;
