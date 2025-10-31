@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Square Collaborative Whiteboard</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter Font -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f7f7f9; }
+        canvas {
+            border: 1px solid #e0e0e0;
+            background-color: white;
+            cursor: crosshair;
+            touch-action: none; /* Prevent scrolling/zooming on touch */
+        }
+        /* Custom scrollbar for stroke list */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background-color: #f1f5f9; }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex flex-col items-center">
+
+    <div id="loading" class="text-xl font-semibold text-gray-700 p-4 rounded-lg bg-yellow-100 border border-yellow-300 shadow-md">
+        Loading Firebase and Authenticating User...
+    </div>
+
+    <div id="app" class="hidden w-full max-w-7xl">
+        <header class="mb-4 flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-xl shadow-lg border border-gray-100">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2 md:mb-0">Collaborative Whiteboard (Square)</h1>
+            <div class="text-sm text-gray-600 truncate">
+                Your ID: <span id="user-id" class="font-mono text-xs text-blue-600 bg-blue-50 p-1 rounded">...</span>
+            </div>
+        </header>
+
+        <div class="flex flex-col lg:flex-row gap-6">
+
+            <!-- Controls Panel -->
+            <div class="lg:w-1/4 bg-white p-5 rounded-xl shadow-lg border border-gray-100 flex flex-col gap-4 order-2 lg:order-1">
+                <h2 class="text-xl font-semibold text-gray-700 mb-2 border-b pb-2">Drawing Tools</h2>
+
+                <!-- Color Picker -->
+                <div>
+                    <label for="color-picker" class="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                    <input type="color" id="color-picker" value="#3b82f6" class="w-full h-10 border-2 border-gray-300 rounded-lg p-0.5 shadow-inner">
+                </div>
+
+                <!-- Stroke Size Slider -->
+                <div>
+                    <label for="stroke-size" class="block text-sm font-medium text-gray-700 mb-1">
+                        Size: <span id="size-label" class="font-mono text-blue-600">5</span>px
+                    </label>
+                    <input type="range" id="stroke-size" min="1" max="50" value="5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="mt-4 space-y-3">
+                    <button id="undo-button" class="w-full py-2 px-4 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-lg shadow-md transition duration-150 transform hover:scale-[1.01]">
+                        Undo My Last Stroke Chunk
+                    </button>
+                    <button id="clear-button" class="w-full py-2 px-4 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg shadow-md transition duration-150 transform hover:scale-[1.01]">
+                        Clear All Drawings
+                    </button>
+                </div>
+
+                <!-- Active Strokes List (for debugging/info) -->
+                <div class="mt-6">
+                    <h3 class="text-lg font-semibold text-gray-700 border-t pt-3">Live Status</h3>
+                    <p class="text-xs text-gray-500 mb-2">Total chunks: <span id="stroke-count" class="font-bold">0</span></p>
+                    <div class="text-sm text-gray-700 mt-1">
+                        Drawing sync speed: <span class="font-bold text-green-600">~0.5s chunks</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Canvas Area -->
+            <div class="lg:w-3/4 bg-white p-1 rounded-xl shadow-lg border border-gray-100 order-1 lg:order-2">
+                <canvas id="whiteboard" class="w-full rounded-lg"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, orderBy, limit, getDocs, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables provided by the Canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let db, auth, userId = null;
+        let isDrawing = false;
+        let currentStroke = []; // Holds points for the current, unsaved drawing chunk
+        let allStrokes = {}; // Stores all synchronized stroke documents by docId
+        let chunkTimer = null;
+        let lastTimestamp = 0;
+
+        // Constants
+        const CHUNK_INTERVAL = 500; // Save a new chunk every 500ms of continuous drawing
+        const MAX_RETRIES = 5;
+        const BASE_DELAY = 1000;
+        const COLLECTION_NAME = 'whiteboard_strokes';
+
+        const canvas = document.getElementById('whiteboard');
+        const ctx = canvas.getContext('2d');
+        const loadingDiv = document.getElementById('loading');
+        const appDiv = document.getElementById('app');
+        const userIdSpan = document.getElementById('user-id');
+        const strokeCountSpan = document.getElementById('stroke-count');
+        const colorPicker = document.getElementById('color-picker');
+        const sizeSlider = document.getElementById('stroke-size');
+        const sizeLabel = document.getElementById('size-label');
+        const undoButton = document.getElementById('undo-button');
+        const clearButton = document.getElementById('clear-button');
+
+        // --- Utility Functions ---
+
+        /**
+         * Converts base64 encoded string to an ArrayBuffer.
+         * @param {string} base64 The base64 string to decode.
+         * @returns {ArrayBuffer} The decoded ArrayBuffer.
+         */
+        const base64ToArrayBuffer = (base64) => {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        };
+
+        // Exponential backoff retry logic for Firestore operations
+        async function firestoreRetryWrapper(operation, docId = null) {
+            for (let i = 0; i < MAX_RETRIES; i++) {
+                try {
+                    return await operation();
+                } catch (error) {
+                    if (error.code === 'unavailable' || error.code === 'resource-exhausted' || error.code === 'internal') {
+                        const delay = BASE_DELAY * Math.pow(2, i) + Math.random() * 1000;
+                        console.warn(`Firestore operation failed (attempt ${i + 1}/${MAX_RETRIES}): ${error.code}. Retrying in ${delay.toFixed(0)}ms...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    } else {
+                        console.error(`Unrecoverable Firestore error: ${error.code}`, error);
+                        throw error;
+                    }
+                }
+            }
+            console.error(`Firestore operation failed after ${MAX_RETRIES} attempts.`);
+            throw new Error("Firestore operation failed after multiple retries.");
+        }
+
+        // --- Firebase Initialization and Auth ---
+
+        async function initFirebase() {
+            if (!firebaseConfig) {
+                console.error("Firebase configuration is missing.");
+                loadingDiv.textContent = "Error: Firebase configuration is missing.";
+                return;
+            }
+
+            try {
+                // setLogLevel('debug'); // Uncomment for verbose Firestore logging
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // Authenticate the user
+                await new Promise(resolve => {
+                    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+                        unsubscribe(); // Stop listening after the first event
+
+                        if (user) {
+                            userId = user.uid;
+                        } else {
+                            if (initialAuthToken) {
+                                await signInWithCustomToken(auth, initialAuthToken);
+                                userId = auth.currentUser.uid;
+                            } else {
+                                await signInAnonymously(auth);
+                                userId = auth.currentUser.uid;
+                            }
+                        }
+                        userIdSpan.textContent = userId;
+                        console.log("Firebase initialized. User ID:", userId);
+                        resolve();
+                    });
+                });
+
+                // Start the application logic
+                setupCanvasSize();
+                window.addEventListener('resize', setupCanvasSize);
+                setupListeners();
+                listenForStrokes();
+
+                loadingDiv.classList.add('hidden');
+                appDiv.classList.remove('hidden');
+
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                loadingDiv.textContent = `Initialization Error: ${error.message}`;
+            }
+        }
+
+        // --- Canvas and Drawing Logic ---
+
+        function setupCanvasSize() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            // Calculate the maximum possible size for a square canvas.
+            // Height is limited by 75% of the viewport height (to leave space for controls/header).
+            const maxHeight = window.innerHeight * 0.75; 
+            
+            // The size of the square is the minimum of the container's width or the calculated maximum height.
+            const maxSize = Math.min(rect.width, maxHeight);
+            
+            // Set both width and height to the calculated square size
+            canvas.width = maxSize;
+            canvas.height = maxSize;
+            
+            redrawAllStrokes();
+        }
+
+        function getMousePos(event) {
+            const rect = canvas.getBoundingClientRect();
+            let x, y;
+
+            if (event.touches) {
+                x = event.touches[0].clientX - rect.left;
+                y = event.touches[0].clientY - rect.top;
+            } else {
+                x = event.clientX - rect.left;
+                y = event.clientY - rect.top;
+            }
+
+            // Normalize coordinates to a 0-1000 range for persistence, regardless of canvas size
+            const normalizedX = (x / canvas.width) * 1000;
+            const normalizedY = (y / canvas.height) * 1000;
+
+            return { x, y, nx: normalizedX, ny: normalizedY };
+        }
+
+        function drawSegment(start, end, color, size) {
+            ctx.beginPath();
+            ctx.moveTo(start.x, start.y);
+            ctx.lineTo(end.x, end.y);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = size;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+        }
+
+        function handleMouseDown(event) {
+            if (event.button === 2) return; // Ignore right-click
+            isDrawing = true;
+            event.preventDefault(); // Prevent touch scrolling
+            const pos = getMousePos(event);
+            lastTimestamp = Date.now();
+            currentStroke = [{ x: pos.nx, y: pos.ny, t: lastTimestamp }];
+
+            // Start the chunking timer
+            chunkTimer = setInterval(saveCurrentChunk, CHUNK_INTERVAL);
+        }
+
+        function handleMouseMove(event) {
+            if (!isDrawing) return;
+            event.preventDefault(); // Prevent touch scrolling
+            const pos = getMousePos(event);
+
+            const lastPoint = currentStroke[currentStroke.length - 1];
+            const currentPoint = { x: pos.nx, y: pos.ny, t: Date.now() };
+
+            if (lastPoint) {
+                // Denormalize points for local drawing
+                const dx1 = (lastPoint.x / 1000) * canvas.width;
+                const dy1 = (lastPoint.y / 1000) * canvas.height;
+                const dx2 = (currentPoint.x / 1000) * canvas.width;
+                const dy2 = (currentPoint.y / 1000) * canvas.height;
+
+                drawSegment({ x: dx1, y: dy1 }, { x: dx2, y: dy2 }, colorPicker.value, parseInt(sizeSlider.value));
+            }
+
+            currentStroke.push(currentPoint);
+        }
+
+        function handleMouseUp(event) {
+            if (!isDrawing) return;
+
+            clearInterval(chunkTimer); // Stop the periodic chunking
+            chunkTimer = null;
+            isDrawing = false;
+
+            // Save any remaining points as the final chunk of this drawing session
+            if (currentStroke.length > 1) {
+                saveCurrentChunk();
+            }
+            currentStroke = []; // Reset the local stroke array
+        }
+
+        function setupListeners() {
+            // Drawing Listeners (Mouse and Touch)
+            canvas.addEventListener('mousedown', handleMouseDown);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp); // Listen on document to catch mouse-up outside canvas
+
+            canvas.addEventListener('touchstart', handleMouseDown);
+            canvas.addEventListener('touchmove', handleMouseMove);
+            document.addEventListener('touchend', handleMouseUp);
+            document.addEventListener('touchcancel', handleMouseUp);
+
+            // UI Listeners
+            sizeSlider.addEventListener('input', (e) => {
+                sizeLabel.textContent = e.target.value;
+            });
+
+            undoButton.addEventListener('click', deleteLastChunk);
+            clearButton.addEventListener('click', clearAllStrokes);
+        }
+
+        // --- Firestore Interaction ---
+
+        const getCollectionRef = () => {
+            const collectionPath = `artifacts/${appId}/public/data/${COLLECTION_NAME}`;
+            return collection(db, collectionPath);
+        };
+
+        async function saveCurrentChunk() {
+            if (currentStroke.length < 2) {
+                currentStroke = [];
+                return;
+            }
+
+            const currentTimestamp = Date.now();
+            const chunkData = {
+                userId: userId,
+                color: colorPicker.value,
+                size: parseInt(sizeSlider.value),
+                points: currentStroke,
+                createdAt: currentTimestamp, // Use client timestamp for ordering
+            };
+
+            const path = getCollectionRef();
+
+            try {
+                // Use a wrapper for robust writes
+                await firestoreRetryWrapper(() => addDoc(path, chunkData));
+                console.log("Stroke chunk saved:", currentStroke.length, "points");
+            } catch (e) {
+                console.error("Error adding document: ", e);
+            }
+
+            // Start the next chunk with the last point of the previous chunk
+            // This prevents gaps in the line when chunking occurs
+            const lastPoint = currentStroke[currentStroke.length - 1];
+            currentStroke = [{ x: lastPoint.x, y: lastPoint.y, t: lastPoint.t }];
+        }
+
+        function listenForStrokes() {
+            const q = query(getCollectionRef());
+
+            onSnapshot(q, (snapshot) => {
+                let hasChanges = false;
+                snapshot.docChanges().forEach((change) => {
+                    const docData = change.doc.data();
+                    const docId = change.doc.id;
+
+                    if (change.type === "added" || change.type === "modified") {
+                        allStrokes[docId] = { ...docData, id: docId };
+                        hasChanges = true;
+                    }
+                    if (change.type === "removed") {
+                        delete allStrokes[docId];
+                        hasChanges = true;
+                    }
+                });
+
+                if (hasChanges) {
+                    redrawAllStrokes();
+                }
+
+                strokeCountSpan.textContent = Object.keys(allStrokes).length;
+            }, (error) => {
+                console.error("Error listening to Firestore updates:", error);
+            });
+        }
+
+        function redrawAllStrokes() {
+            // Clear the canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Get strokes and sort them by creation time to maintain drawing order
+            const sortedStrokes = Object.values(allStrokes).sort((a, b) => a.createdAt - b.createdAt);
+
+            sortedStrokes.forEach(stroke => {
+                if (stroke.points && stroke.points.length >= 2) {
+                    // Iterate through points and draw segments
+                    for (let i = 0; i < stroke.points.length - 1; i++) {
+                        const p1 = stroke.points[i];
+                        const p2 = stroke.points[i + 1];
+
+                        // Denormalize coordinates from 0-1000 range to current canvas size
+                        const start = {
+                            x: (p1.x / 1000) * canvas.width,
+                            y: (p1.y / 1000) * canvas.height
+                        };
+                        const end = {
+                            x: (p2.x / 1000) * canvas.width,
+                            y: (p2.y / 1000) * canvas.height
+                        };
+
+                        drawSegment(start, end, stroke.color, stroke.size);
+                    }
+                }
+            });
+        }
+
+        async function deleteLastChunk() {
+            // 1. Query the last chunk created by the current user
+            const q = query(
+                getCollectionRef(),
+                where("userId", "==", userId),
+                orderBy("createdAt", "desc"), // Assumes client-side timestamp is good enough for ordering
+                limit(1)
+            );
+
+            try {
+                const snapshot = await firestoreRetryWrapper(() => getDocs(q));
+
+                if (!snapshot.empty) {
+                    const docToDelete = snapshot.docs[0];
+                    const docId = docToDelete.id;
+                    const docRef = doc(getCollectionRef(), docId);
+
+                    // 2. Delete the document
+                    await firestoreRetryWrapper(() => deleteDoc(docRef), docId);
+                    console.log("Deleted user's last stroke chunk:", docId);
+                } else {
+                    console.log("No strokes found for deletion by this user.");
+                    // Use custom message box instead of alert
+                    showTemporaryMessage("You have no recent stroke chunks to undo.", "bg-blue-100 text-blue-700 border-blue-300");
+                }
+            } catch (e) {
+                console.error("Error deleting document:", e);
+                showTemporaryMessage("Failed to undo stroke. See console for details.", "bg-red-100 text-red-700 border-red-300");
+            }
+        }
+
+        async function clearAllStrokes() {
+            // NOTE: Using a custom modal/message box is required, but since this relies on a global function `confirm()`
+            // to preserve the user's initial logic, I'll temporarily use this pattern for the prompt. 
+            // In a production environment, this should be replaced by a fully custom UI modal.
+            if (!confirm("Are you sure you want to permanently clear ALL drawings for EVERYONE?")) {
+                return;
+            }
+
+            const q = query(getCollectionRef());
+
+            try {
+                // Fetch all documents
+                const snapshot = await firestoreRetryWrapper(() => getDocs(q));
+
+                if (snapshot.empty) {
+                    showTemporaryMessage("The board is already clear.", "bg-gray-100 text-gray-700 border-gray-300");
+                    return;
+                }
+
+                // Delete all documents found
+                const deletePromises = snapshot.docs.map(docToDelete =>
+                    firestoreRetryWrapper(() => deleteDoc(doc(getCollectionRef(), docToDelete.id)))
+                );
+
+                await Promise.all(deletePromises);
+                showTemporaryMessage(`Successfully cleared ${snapshot.size} stroke chunks.`, "bg-green-100 text-green-700 border-green-300");
+
+            } catch (e) {
+                console.error("Error clearing all documents:", e);
+                showTemporaryMessage("Failed to clear the board. See console for details.", "bg-red-100 text-red-700 border-red-300");
+            }
+        }
+
+        // --- Custom Message Box (Replaces Alert) ---
+
+        function showTemporaryMessage(message, classes) {
+            let msgBox = document.getElementById('temp-message');
+            if (!msgBox) {
+                msgBox = document.createElement('div');
+                msgBox.id = 'temp-message';
+                msgBox.className = 'fixed top-4 right-4 z-50 p-3 rounded-lg shadow-xl font-medium transition-opacity duration-300 border';
+                document.body.appendChild(msgBox);
+            }
+
+            msgBox.textContent = message;
+            msgBox.className = `fixed top-4 right-4 z-50 p-3 rounded-lg shadow-xl font-medium transition-opacity duration-300 border ${classes} opacity-100`;
+
+            clearTimeout(msgBox.timer);
+            msgBox.timer = setTimeout(() => {
+                msgBox.classList.remove('opacity-100');
+                msgBox.classList.add('opacity-0');
+            }, 3000);
+        }
+
+        // Initialize the application
+        initFirebase();
+
+    </script>
+</body>
+</html>
