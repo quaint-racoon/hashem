@@ -3,18 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Collaborative Whiteboard (RTDB)</title>
+    <title>Collaborative Whiteboard (9-Quadrant RTDB)</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Use Inter Font -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f7f7f9; }
-        canvas {
-            border: 1px solid #e0e0e0;
+        /* Style for the mini canvases in overview mode */
+        #board-display-area canvas {
             background-color: white;
             cursor: crosshair;
             touch-action: none; /* Prevent scrolling/zooming on touch */
+        }
+        /* Style for the container to ensure it fills space */
+        #board-display-area {
+            position: relative;
         }
     </style>
 </head>
@@ -26,7 +30,7 @@
 
     <div id="app" class="hidden w-full max-w-7xl">
         <header class="mb-4 flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-xl shadow-lg border border-gray-100">
-            <h1 class="text-3xl font-bold text-gray-800 mb-2 md:mb-0">Collaborative Whiteboard (Realtime DB)</h1>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2 md:mb-0">9-Quadrant Collaborative Whiteboard</h1>
             <div class="text-sm text-gray-600 truncate">
                 Your ID: <span id="user-id" class="font-mono text-xs text-blue-600 bg-blue-50 p-1 rounded">...</span>
             </div>
@@ -54,10 +58,14 @@
 
                 <!-- Action Buttons -->
                 <div class="mt-4 space-y-3">
+                    <!-- NEW: Back Button (visible when zoomed in) -->
+                    <button id="back-to-overview-button" class="hidden w-full py-2 px-4 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-lg shadow-md transition duration-150 transform hover:scale-[1.01]">
+                        ← Back to 9-Quadrant View
+                    </button>
+                    
                     <button id="undo-button" class="w-full py-2 px-4 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-lg shadow-md transition duration-150 transform hover:scale-[1.01]">
                         Undo My Last Stroke Chunk
                     </button>
-                    <!-- UPDATED: Button text and functionality for user-only clear -->
                     <button id="clear-my-drawings-button" class="w-full py-2 px-4 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg shadow-md transition duration-150 transform hover:scale-[1.01]">
                         Clear My Drawings Only
                     </button>
@@ -66,7 +74,7 @@
                 <!-- Active Strokes List (for debugging/info) -->
                 <div class="mt-6">
                     <h3 class="text-lg font-semibold text-gray-700 border-t pt-3">Live Status</h3>
-                    <p class="text-xs text-gray-500 mb-2">Total chunks: <span id="stroke-count" class="font-bold">0</span></p>
+                    <p class="text-xs text-gray-500 mb-2">Total chunks: <span id="stroke-count" class="font-bold">0</span> (Across 9 Boards)</p>
                     <div class="text-sm text-gray-700 mt-1">
                         Data storage: <span class="font-bold text-green-600">Realtime Database</span>
                     </div>
@@ -74,9 +82,11 @@
 
             </div>
 
-            <!-- Canvas Area (Fix: Added min-h-[70vh] to ensure vertical space for the square canvas) -->
+            <!-- Canvas Area: NEW container for 9 grids or 1 zoomed canvas -->
             <div class="lg:w-3/4 bg-white p-1 rounded-xl shadow-lg border border-gray-100 order-1 lg:order-2 flex justify-center items-center min-h-[70vh]">
-                <canvas id="whiteboard" class="rounded-lg"></canvas>
+                <div id="board-display-area" class="w-full h-full flex justify-center items-center p-2 md:p-4">
+                    <!-- Quadrants or Zoomed Canvas will be injected here -->
+                </div>
             </div>
         </div>
     </div>
@@ -106,14 +116,20 @@
         let dbRTDB, auth, userId = null; 
         let isDrawing = false;
         let currentStroke = []; 
-        let allStrokes = {}; 
         let lastTimestamp = 0;
 
-        // Constants
-        const RTDB_NODE_NAME = 'whiteboard_strokes'; 
+        // NEW State Variables for Multi-Board
+        const BOARD_COUNT = 9;
+        const RTDB_NODE_PREFIX = 'whiteboard_strokes_'; 
+        // Stores strokes keyed by board ID (1-9)
+        let allStrokesByBoard = {}; 
+        // null for overview, 1-9 for zoomed view
+        let currentBoardId = null;  
 
-        const canvas = document.getElementById('whiteboard');
-        const ctx = canvas.getContext('2d');
+        // Reference to the currently active (zoomed) canvas element and context
+        let currentCanvas = null; 
+        let currentCtx = null;    
+
         const loadingDiv = document.getElementById('loading');
         const appDiv = document.getElementById('app');
         const userIdSpan = document.getElementById('user-id');
@@ -122,8 +138,12 @@
         const sizeSlider = document.getElementById('stroke-size');
         const sizeLabel = document.getElementById('size-label');
         const undoButton = document.getElementById('undo-button');
-        // UPDATED: Reference to the new clear button ID
         const clearMyDrawingsButton = document.getElementById('clear-my-drawings-button');
+        
+        // NEW References for the UI containers
+        const boardDisplayArea = document.getElementById('board-display-area'); 
+        const backButton = document.getElementById('back-to-overview-button'); 
+
 
         // --- Firebase Initialization and Auth ---
 
@@ -139,7 +159,6 @@
                 auth = getAuth(app);
                 dbRTDB = getDatabase(app); 
 
-                // Authenticate the user
                 await new Promise(resolve => {
                     const unsubscribe = onAuthStateChanged(auth, async (user) => {
                         unsubscribe();
@@ -162,17 +181,16 @@
                 });
 
                 // Start the application logic
-                window.addEventListener('resize', setupCanvasSize);
-                window.addEventListener('load', setupCanvasSize); 
+                window.addEventListener('resize', () => switchBoard(null)); // On resize, refresh overview
+                window.addEventListener('load', () => switchBoard(null)); 
                 
                 setupListeners();
-                listenForStrokes();
+                listenForStrokes(); // Sets up listeners for all 9 boards
 
                 loadingDiv.classList.add('hidden');
                 appDiv.classList.remove('hidden');
 
-                // Immediate call for fastest initial render
-                setupCanvasSize(); 
+                switchBoard(null); // Initial render starts in overview mode
 
             } catch (error) {
                 console.error("Firebase initialization failed:", error);
@@ -180,31 +198,20 @@
             }
         }
 
-        // --- Canvas and Drawing Logic ---
+        // --- Core Drawing Handlers (Bound to Zoomed Canvas) ---
 
-        function setupCanvasSize() {
-            const container = canvas.parentElement;
-            const rect = container.getBoundingClientRect();
-
-            // Calculate the maximum space available for the square.
-            const maxSize = Math.min(rect.width, rect.height);
-
-            // Set both width and height to the calculated square size
-            canvas.width = maxSize;
-            canvas.height = maxSize;
-
-            // Set the canvas CSS width/height to the calculated size in pixels
-            canvas.style.width = `${maxSize}px`;
-            canvas.style.height = `${maxSize}px`;
-
-            redrawAllStrokes();
-        }
-
+        /**
+         * Gets the mouse/touch position normalized to a 0-1000 grid.
+         * It uses the globally set 'currentCanvas' (the zoomed board).
+         */
         function getMousePos(event) {
-            const rect = canvas.getBoundingClientRect();
+            const targetCanvas = currentCanvas;
+            if (!targetCanvas) return {x: 0, y: 0, nx: 0, ny: 0};
+            
+            const rect = targetCanvas.getBoundingClientRect();
             let x, y;
 
-            if (event.touches) {
+            if (event.touches && event.touches.length > 0) {
                 x = event.touches[0].clientX - rect.left;
                 y = event.touches[0].clientY - rect.top;
             } else {
@@ -212,48 +219,48 @@
                 y = event.clientY - rect.top;
             }
 
-            // Normalize coordinates to a 0-1000 range for persistence, regardless of canvas size
-            const normalizedX = (x / canvas.width) * 1000;
-            const normalizedY = (y / canvas.height) * 1000;
+            // Normalize coordinates to a 0-1000 range
+            const normalizedX = (x / targetCanvas.width) * 1000;
+            const normalizedY = (y / targetCanvas.height) * 1000;
 
             return { x, y, nx: normalizedX, ny: normalizedY };
         }
 
-        function drawSegment(start, end, color, size) {
-            ctx.beginPath();
-            ctx.moveTo(start.x, start.y);
-            ctx.lineTo(end.x, end.y);
-            ctx.strokeStyle = color;
-            ctx.lineWidth = size;
-            ctx.lineCap = 'round';
-            ctx.stroke();
-        }
-
         function handleMouseDown(event) {
-            if (event.button === 2) return; // Ignore right-click
+            if (!currentCanvas || currentBoardId === null) return;
+            
+            if (event.button === 2) return; 
             isDrawing = true;
-            event.preventDefault(); // Prevent touch scrolling
+            event.preventDefault(); 
             const pos = getMousePos(event);
             lastTimestamp = Date.now();
             currentStroke = [{ x: pos.nx, y: pos.ny, t: lastTimestamp }];
         }
 
         function handleMouseMove(event) {
-            if (!isDrawing) return;
-            event.preventDefault(); // Prevent touch scrolling
+            if (!isDrawing || !currentCanvas || currentBoardId === null) return;
+            
+            event.preventDefault(); 
             const pos = getMousePos(event);
 
             const lastPoint = currentStroke[currentStroke.length - 1];
             const currentPoint = { x: pos.nx, y: pos.ny, t: Date.now() };
 
             if (lastPoint) {
-                // Denormalize points for local drawing
-                const dx1 = (lastPoint.x / 1000) * canvas.width;
-                const dy1 = (lastPoint.y / 1000) * canvas.height;
-                const dx2 = (currentPoint.x / 1000) * canvas.width;
-                const dy2 = (currentPoint.y / 1000) * canvas.height;
+                // Denormalize points for local drawing using the zoomed canvas dimensions
+                const dx1 = (lastPoint.x / 1000) * currentCanvas.width;
+                const dy1 = (lastPoint.y / 1000) * currentCanvas.height;
+                const dx2 = (currentPoint.x / 1000) * currentCanvas.width;
+                const dy2 = (currentPoint.y / 1000) * currentCanvas.height;
 
-                drawSegment({ x: dx1, y: dy1 }, { x: dx2, y: dy2 }, colorPicker.value, parseInt(sizeSlider.value));
+                // Use the currentCtx for local drawing
+                currentCtx.beginPath();
+                currentCtx.moveTo(dx1, dy1);
+                currentCtx.lineTo(dx2, dy2);
+                currentCtx.strokeStyle = colorPicker.value;
+                currentCtx.lineWidth = parseInt(sizeSlider.value);
+                currentCtx.lineCap = 'round';
+                currentCtx.stroke();
             }
 
             currentStroke.push(currentPoint);
@@ -261,45 +268,108 @@
 
         function handleMouseUp(event) {
             if (!isDrawing) return;
-
+            
             isDrawing = false;
-
-            // FIX: Save the entire accumulated path only when drawing stops (mouse/finger up)
+            
             if (currentStroke.length > 1) {
                 saveCurrentStroke();
             }
-            currentStroke = []; // Reset the local stroke array for the next stroke
+            currentStroke = []; 
         }
 
+        // --- UI Setup and Board Management ---
+
         function setupListeners() {
-            // Drawing Listeners (Mouse and Touch)
-            canvas.addEventListener('mousedown', handleMouseDown);
-            canvas.addEventListener('mousemove', handleMouseMove);
-            document.addEventListener('mouseup', handleMouseUp); // Listen on document to catch mouse-up outside canvas
-
-            canvas.addEventListener('touchstart', handleMouseDown);
-            canvas.addEventListener('touchmove', handleMouseMove);
-            document.addEventListener('touchend', handleMouseUp);
-            document.addEventListener('touchcancel', handleMouseUp);
-
-            // UI Listeners
+            // UI Listeners (remain the same)
             sizeSlider.addEventListener('input', (e) => {
                 sizeLabel.textContent = e.target.value;
             });
 
             undoButton.addEventListener('click', deleteLastChunk);
-            // UPDATED: Attach listener to the new function
             clearMyDrawingsButton.addEventListener('click', deleteMyDrawings);
+            backButton.addEventListener('click', () => switchBoard(null));
+        }
+        
+        /**
+         * Attaches drawing handlers to the newly created zoomed canvas.
+         */
+        function setupZoomedCanvasListeners(targetCanvas) {
+            // Remove previous listeners if possible (though innerHTML usually cleans this up)
+            targetCanvas.onmousedown = handleMouseDown;
+            targetCanvas.onmousemove = handleMouseMove;
+            targetCanvas.onmouseup = handleMouseUp; 
+
+            targetCanvas.ontouchstart = handleMouseDown;
+            targetCanvas.ontouchmove = handleMouseMove;
+            targetCanvas.ontouchend = handleMouseUp;
+            targetCanvas.ontouchcancel = handleMouseUp;
         }
 
-        // --- Realtime Database Interaction ---
+        /**
+         * Switches the view between the 9-quadrant overview and a single zoomed board.
+         * @param {number|null} boardId - The ID of the board (1-9) to zoom into, or null for overview.
+         */
+        function switchBoard(boardId) {
+            // If the user clicks 'Back' or a resize event happens, go to overview
+            if (boardId === null || isNaN(boardId) || boardId < 1 || boardId > BOARD_COUNT) {
+                renderOverview();
+                // Disable drawing buttons in overview mode
+                undoButton.disabled = true;
+                clearMyDrawingsButton.disabled = true;
+            } else {
+                renderZoomedCanvas(boardId);
+                 // Enable drawing buttons in zoomed mode
+                undoButton.disabled = false;
+                clearMyDrawingsButton.disabled = false;
+            }
+        }
 
-        const getRTDBRef = () => {
-            const path = `artifacts/${appId}/public/data/${RTDB_NODE_NAME}`;
+        // --- RTDB and Data Persistence ---
+
+        const getRTDBRef = (boardId) => {
+            const path = `artifacts/${appId}/public/data/${RTDB_NODE_PREFIX}${boardId}`;
             return ref(dbRTDB, path);
         };
 
+        function listenForStrokes() {
+            // Setup listeners for all 9 boards
+            for (let id = 1; id <= BOARD_COUNT; id++) {
+                const dbRef = getRTDBRef(id);
+
+                onValue(dbRef, (snapshot) => {
+                    const data = snapshot.val();
+                    allStrokesByBoard[id] = data || {};
+
+                    // Redraw the relevant view based on current mode
+                    if (currentBoardId === null) {
+                        renderOverview();
+                    } else if (currentBoardId === id) {
+                        redrawSingleCanvas();
+                    }
+                    
+                    updateStrokeCountDisplay();
+                    
+                }, (error) => {
+                    console.error(`Error listening to board ${id}:`, error);
+                    showTemporaryMessage(`Error syncing board ${id}. Check RTDB rules.`, "bg-red-100 text-red-700 border-red-300");
+                });
+            }
+        }
+
+        function updateStrokeCountDisplay() {
+            let totalCount = 0;
+            for (const boardId in allStrokesByBoard) {
+                totalCount += Object.keys(allStrokesByBoard[boardId]).length;
+            }
+            strokeCountSpan.textContent = totalCount;
+        }
+
         async function saveCurrentStroke() {
+            if (currentBoardId === null) {
+                console.warn("Attempted to save stroke in overview mode.");
+                return;
+            }
+
             if (currentStroke.length < 2) {
                 return;
             }
@@ -313,69 +383,181 @@
                 createdAt: currentTimestamp,
             };
 
-            const dbRef = getRTDBRef();
+            const dbRef = getRTDBRef(currentBoardId);
 
             try {
                 await push(dbRef, strokeData);
-                console.log("Full stroke saved:", currentStroke.length, "points");
+                console.log(`Full stroke saved to board ${currentBoardId}:`, currentStroke.length, "points");
             } catch (e) {
                 console.error("Error pushing data to RTDB: ", e);
                 showTemporaryMessage("Error saving drawing stroke.", "bg-red-100 text-red-700 border-red-300");
             }
         }
+        
+        // --- Redrawing Logic ---
 
-        function listenForStrokes() {
-            const dbRef = getRTDBRef();
-
-            // onValue listens for all changes at the path
-            onValue(dbRef, (snapshot) => {
-                const data = snapshot.val();
-                allStrokes = data || {};
-
-                redrawAllStrokes();
-                strokeCountSpan.textContent = Object.keys(allStrokes).length;
-            }, (error) => {
-                console.error("Error listening to Realtime Database updates:", error);
-                showTemporaryMessage("Error syncing drawings. Check RTDB rules.", "bg-red-100 text-red-700 border-red-300");
-            });
+        /**
+         * Redraws the single zoomed canvas (currentBoardId).
+         */
+        function redrawSingleCanvas() {
+            if (currentBoardId === null || !currentCanvas || !currentCtx) return;
+            
+            const context = currentCtx;
+            const canvasWidth = currentCanvas.width;
+            
+            context.clearRect(0, 0, canvasWidth, canvasWidth);
+            
+            drawBoardStrokes(currentBoardId, currentCanvas, true); // Use actual size
         }
 
-        function redrawAllStrokes() {
-            // Clear the canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        /**
+         * Draws strokes onto a given canvas.
+         * @param {number} boardId - The ID of the board whose strokes to draw.
+         * @param {HTMLCanvasElement} targetCanvas - The canvas element to draw onto.
+         * @param {boolean} [isZoomed=false] - If true, uses the actual stroke size. If false (overview), scales it down.
+         */
+        function drawBoardStrokes(boardId, targetCanvas, isZoomed = false) {
+            const context = targetCanvas.getContext('2d');
+            const strokes = allStrokesByBoard[boardId] || {};
+            const canvasWidth = targetCanvas.width;
+            
+            // Clear only for the small canvas redraws in overview mode
+            if (!isZoomed) {
+                 context.clearRect(0, 0, canvasWidth, canvasWidth);
+            }
 
-            const strokesArray = Object.keys(allStrokes).map(key => ({
-                ...allStrokes[key],
-                id: key, // Store the RTDB key (e.g., -N_g87...) as the ID
+            const strokesArray = Object.keys(strokes).map(key => ({
+                ...strokes[key],
+                id: key, 
             })).sort((a, b) => a.createdAt - b.createdAt);
 
             strokesArray.forEach(stroke => {
                 if (stroke.points && stroke.points.length >= 2) {
-                    // Iterate through points and draw segments
+                    const lineWidth = isZoomed ? stroke.size : Math.max(1, stroke.size / 3); // Scale down line width for overview
+
                     for (let i = 0; i < stroke.points.length - 1; i++) {
                         const p1 = stroke.points[i];
                         const p2 = stroke.points[i + 1];
 
                         // Denormalize coordinates from 0-1000 range to current canvas size
                         const start = {
-                            x: (p1.x / 1000) * canvas.width,
-                            y: (p1.y / 1000) * canvas.height
+                            x: (p1.x / 1000) * canvasWidth,
+                            y: (p1.y / 1000) * canvasWidth
                         };
                         const end = {
-                            x: (p2.x / 1000) * canvas.width,
-                            y: (p2.y / 1000) * canvas.height
+                            x: (p2.x / 1000) * canvasWidth,
+                            y: (p2.y / 1000) * canvasWidth
                         };
 
-                        drawSegment(start, end, stroke.color, stroke.size);
+                        context.beginPath();
+                        context.moveTo(start.x, start.y);
+                        context.lineTo(end.x, end.y);
+                        context.strokeStyle = stroke.color;
+                        context.lineWidth = lineWidth; 
+                        context.lineCap = 'round';
+                        context.stroke();
                     }
                 }
             });
         }
+        
+        /**
+         * Renders the 3x3 grid overview of all boards.
+         */
+        function renderOverview() {
+            currentBoardId = null;
+            backButton.classList.add('hidden');
+            
+            // Calculate size based on parent container
+            const containerWidth = boardDisplayArea.clientWidth;
+            const quadrantSize = Math.floor(containerWidth / 3);
+            
+            // Build the 3x3 grid HTML
+            let overviewHTML = `<div class="grid grid-cols-3 gap-2 p-2 w-full h-full" style="max-width:${quadrantSize * 3}px;">`;
+
+            for (let i = 1; i <= BOARD_COUNT; i++) {
+                overviewHTML += `
+                    <div id="quadrant-wrapper-${i}" class="cursor-pointer border border-gray-200 hover:border-blue-400 rounded-lg shadow-md hover:shadow-xl transition-all relative" data-board-id="${i}">
+                        <div class="absolute top-1 left-2 text-xs font-semibold text-gray-500 bg-white/70 px-1 rounded-sm">Board ${i}</div>
+                        <canvas 
+                            id="board-mini-${i}" 
+                            width="${quadrantSize}" 
+                            height="${quadrantSize}" 
+                            class="w-full h-full rounded-lg"
+                        ></canvas>
+                    </div>
+                `;
+            }
+
+            overviewHTML += `</div>`;
+            boardDisplayArea.innerHTML = overviewHTML;
+            
+            // Draw content onto the mini canvases and attach click handlers
+            for (let i = 1; i <= BOARD_COUNT; i++) {
+                const miniCanvas = document.getElementById(`board-mini-${i}`);
+                if (miniCanvas) {
+                    drawBoardStrokes(i, miniCanvas, false);
+                    
+                    const wrapper = document.getElementById(`quadrant-wrapper-${i}`);
+                    // Use a direct click handler instead of binding to a function property
+                    wrapper.addEventListener('click', (e) => {
+                        const boardId = parseInt(e.currentTarget.dataset.boardId);
+                        if (!isNaN(boardId)) {
+                            switchBoard(boardId);
+                        }
+                    });
+                }
+            }
+        }
+        
+        /**
+         * Renders the single canvas for the zoomed board.
+         * @param {number} boardId - The ID of the board to zoom into.
+         */
+        function renderZoomedCanvas(boardId) {
+            currentBoardId = boardId;
+            backButton.classList.remove('hidden');
+
+            const containerRect = boardDisplayArea.getBoundingClientRect();
+            // Use 95% of the minimum dimension to ensure a nice margin
+            const maxSize = Math.min(containerRect.width, containerRect.height) * 0.95; 
+
+            // Create and inject the single zoomed canvas
+            const zoomedCanvasHTML = `
+                <canvas 
+                    id="board-${boardId}" 
+                    width="${maxSize}" 
+                    height="${maxSize}" 
+                    class="rounded-xl shadow-2xl border border-gray-300 transition-all"
+                ></canvas>
+            `;
+            
+            boardDisplayArea.innerHTML = zoomedCanvasHTML;
+            
+            // Re-assign global variables for drawing
+            const zoomedCanvas = document.getElementById(`board-${boardId}`);
+            currentCanvas = zoomedCanvas;
+            currentCtx = zoomedCanvas.getContext('2d');
+            
+            setupZoomedCanvasListeners(zoomedCanvas);
+            
+            // Redraw the content
+            redrawSingleCanvas();
+        }
+
+
+        // --- Delete/Undo Logic (Scoped to Current Zoomed Board) ---
 
         async function deleteLastChunk() {
-            // 1. Find the last stroke chunk created by the current user (client-side sorting)
-            const strokesArray = Object.keys(allStrokes).map(key => ({
-                ...allStrokes[key],
+            if (currentBoardId === null) {
+                showTemporaryMessage("Please zoom into a board to undo a stroke.", "bg-yellow-100 text-yellow-700 border-yellow-300");
+                return;
+            }
+            
+            const boardStrokes = allStrokesByBoard[currentBoardId] || {};
+
+            const strokesArray = Object.keys(boardStrokes).map(key => ({
+                ...boardStrokes[key],
                 id: key, // RTDB Key
             }));
 
@@ -386,40 +568,40 @@
 
             if (userStrokes.length > 0) {
                 const lastStrokeKey = userStrokes[0].id;
-                // Path to the specific stroke node
-                const strokeRef = ref(dbRTDB, `artifacts/${appId}/public/data/${RTDB_NODE_NAME}/${lastStrokeKey}`);
+                // Path to the specific stroke node on the current board
+                const strokeRef = ref(dbRTDB, `artifacts/${appId}/public/data/${RTDB_NODE_PREFIX}${currentBoardId}/${lastStrokeKey}`);
 
                 try {
-                    // 2. Remove the node from the database
                     await remove(strokeRef);
-                    console.log("Deleted user's last stroke chunk:", lastStrokeKey);
+                    showTemporaryMessage(`Deleted your last stroke chunk from Board ${currentBoardId}.`, "bg-green-100 text-green-700 border-green-300");
                 } catch (e) {
                     console.error("Error deleting document:", e);
                     showTemporaryMessage("Failed to undo stroke. See console for details.", "bg-red-100 text-red-700 border-red-300");
                 }
             } else {
-                console.log("No strokes found for deletion by this user.");
-                showTemporaryMessage("You have no recent stroke chunks to undo.", "bg-blue-100 text-blue-700 border-blue-300");
+                showTemporaryMessage(`You have no recent stroke chunks to undo on Board ${currentBoardId}.`, "bg-blue-100 text-blue-700 border-blue-300");
             }
         }
 
-        // NEW FUNCTION: Only clears the drawings created by the current user
         async function deleteMyDrawings() {
-            // Using a temporary modal replacement for confirm()
-            if (!confirm("Are you sure you want to permanently clear ALL of YOUR drawings? This will not affect other users.")) {
+             if (currentBoardId === null) {
+                showTemporaryMessage("Please zoom into a board to clear your drawings.", "bg-yellow-100 text-yellow-700 border-yellow-300");
+                return;
+            }
+            
+            if (!confirm(`Are you sure you want to permanently clear ALL of YOUR drawings from Board ${currentBoardId}? This will not affect other users or other boards.`)) {
                 return;
             }
 
-            // 1. Identify the stroke keys to delete (owned by current user)
-            const strokeKeysToDelete = Object.keys(allStrokes).filter(key => allStrokes[key].userId === userId);
+            const boardStrokes = allStrokesByBoard[currentBoardId] || {};
+            const strokeKeysToDelete = Object.keys(boardStrokes).filter(key => boardStrokes[key].userId === userId);
 
             if (strokeKeysToDelete.length === 0) {
-                showTemporaryMessage("You have no drawings to clear.", "bg-blue-100 text-blue-700 border-blue-300");
+                showTemporaryMessage(`You have no drawings on Board ${currentBoardId} to clear.`, "bg-blue-100 text-blue-700 border-blue-300");
                 return;
             }
 
-            // 2. Delete each stroke individually
-            const rootPath = `artifacts/${appId}/public/data/${RTDB_NODE_NAME}`;
+            const rootPath = `artifacts/${appId}/public/data/${RTDB_NODE_PREFIX}${currentBoardId}`;
             let successfulDeletes = 0;
 
             for (const key of strokeKeysToDelete) {
@@ -433,7 +615,7 @@
             }
 
             if (successfulDeletes === strokeKeysToDelete.length) {
-                showTemporaryMessage(`Successfully cleared ${successfulDeletes} of your drawings.`, "bg-green-100 text-green-700 border-green-300");
+                showTemporaryMessage(`Successfully cleared ${successfulDeletes} of your drawings from Board ${currentBoardId}.`, "bg-green-100 text-green-700 border-green-300");
             } else {
                 showTemporaryMessage(`Finished clearing. ${successfulDeletes}/${strokeKeysToDelete.length} strokes deleted successfully.`, "bg-yellow-100 text-yellow-700 border-yellow-300");
             }
