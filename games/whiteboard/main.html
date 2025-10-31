@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Square Collaborative Whiteboard</title>
+    <title>Collaborative Whiteboard (RTDB)</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Use Inter Font -->
@@ -16,10 +16,6 @@
             cursor: crosshair;
             touch-action: none; /* Prevent scrolling/zooming on touch */
         }
-        /* Custom scrollbar for stroke list */
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background-color: #f1f5f9; }
     </style>
 </head>
 <body class="p-4 md:p-8 min-h-screen flex flex-col items-center">
@@ -30,7 +26,7 @@
 
     <div id="app" class="hidden w-full max-w-7xl">
         <header class="mb-4 flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-xl shadow-lg border border-gray-100">
-            <h1 class="text-3xl font-bold text-gray-800 mb-2 md:mb-0">Collaborative Whiteboard (Square)</h1>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2 md:mb-0">Collaborative Whiteboard (Realtime DB)</h1>
             <div class="text-sm text-gray-600 truncate">
                 Your ID: <span id="user-id" class="font-mono text-xs text-blue-600 bg-blue-50 p-1 rounded">...</span>
             </div>
@@ -71,14 +67,14 @@
                     <h3 class="text-lg font-semibold text-gray-700 border-t pt-3">Live Status</h3>
                     <p class="text-xs text-gray-500 mb-2">Total chunks: <span id="stroke-count" class="font-bold">0</span></p>
                     <div class="text-sm text-gray-700 mt-1">
-                        Drawing sync speed: <span class="font-bold text-green-600">~0.5s chunks</span>
+                        Data storage: <span class="font-bold text-green-600">Realtime Database</span>
                     </div>
                 </div>
 
             </div>
 
             <!-- Canvas Area -->
-            <!-- Adding a container here to enforce centering of the square canvas -->
+            <!-- Container to ensure centering of the square canvas -->
             <div class="lg:w-3/4 bg-white p-1 rounded-xl shadow-lg border border-gray-100 order-1 lg:order-2 flex justify-center items-center">
                 <canvas id="whiteboard" class="rounded-lg"></canvas>
             </div>
@@ -89,35 +85,24 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, orderBy, limit, getDocs, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // New RTDB Import
+        import { getDatabase, ref, onValue, push, remove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
         // Global variables provided by the Canvas environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = {
-  apiKey: "AIzaSyDtMk2diPOq5LQnJBtJjPdFukWhtJDhtso",
-  authDomain: "whiteboard-7eab0.firebaseapp.com",
-  databaseURL: "https://whiteboard-7eab0-default-rtdb.firebaseio.com",
-  projectId: "whiteboard-7eab0",
-  storageBucket: "whiteboard-7eab0.firebasestorage.app",
-  messagingSenderId: "564827963715",
-  appId: "1:564827963715:web:fbbacaa3168852f1c86ff6",
-  measurementId: "G-KVHX7GG6TE"
-};
-
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        let db, auth, userId = null;
+        let dbRTDB, auth, userId = null; // dbRTDB now holds the Realtime Database instance
         let isDrawing = false;
         let currentStroke = []; // Holds points for the current, unsaved drawing chunk
-        let allStrokes = {}; // Stores all synchronized stroke documents by docId
+        let allStrokes = {}; // Stores all synchronized stroke documents by RTDB key
         let chunkTimer = null;
         let lastTimestamp = 0;
 
         // Constants
         const CHUNK_INTERVAL = 500; // Save a new chunk every 500ms of continuous drawing
-        const MAX_RETRIES = 5;
-        const BASE_DELAY = 1000;
-        const COLLECTION_NAME = 'whiteboard_strokes';
+        const RTDB_NODE_NAME = 'whiteboard_strokes'; // The node name under public/data
 
         const canvas = document.getElementById('whiteboard');
         const ctx = canvas.getContext('2d');
@@ -131,43 +116,6 @@
         const undoButton = document.getElementById('undo-button');
         const clearButton = document.getElementById('clear-button');
 
-        // --- Utility Functions ---
-
-        /**
-         * Converts base64 encoded string to an ArrayBuffer.
-         * @param {string} base64 The base64 string to decode.
-         * @returns {ArrayBuffer} The decoded ArrayBuffer.
-         */
-        const base64ToArrayBuffer = (base64) => {
-            const binaryString = atob(base64);
-            const len = binaryString.length;
-            const bytes = new Uint8Array(len);
-            for (let i = 0; i < len; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
-            return bytes.buffer;
-        };
-
-        // Exponential backoff retry logic for Firestore operations
-        async function firestoreRetryWrapper(operation, docId = null) {
-            for (let i = 0; i < MAX_RETRIES; i++) {
-                try {
-                    return await operation();
-                } catch (error) {
-                    if (error.code === 'unavailable' || error.code === 'resource-exhausted' || error.code === 'internal') {
-                        const delay = BASE_DELAY * Math.pow(2, i) + Math.random() * 1000;
-                        console.warn(`Firestore operation failed (attempt ${i + 1}/${MAX_RETRIES}): ${error.code}. Retrying in ${delay.toFixed(0)}ms...`);
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                    } else {
-                        console.error(`Unrecoverable Firestore error: ${error.code}`, error);
-                        throw error;
-                    }
-                }
-            }
-            console.error(`Firestore operation failed after ${MAX_RETRIES} attempts.`);
-            throw new Error("Firestore operation failed after multiple retries.");
-        }
-
         // --- Firebase Initialization and Auth ---
 
         async function initFirebase() {
@@ -178,15 +126,14 @@
             }
 
             try {
-                // setLogLevel('debug'); // Uncomment for verbose Firestore logging
                 const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
                 auth = getAuth(app);
+                dbRTDB = getDatabase(app); // Initialize Realtime Database
 
                 // Authenticate the user
                 await new Promise(resolve => {
                     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-                        unsubscribe(); // Stop listening after the first event
+                        unsubscribe();
 
                         if (user) {
                             userId = user.uid;
@@ -225,19 +172,18 @@
         function setupCanvasSize() {
             const container = canvas.parentElement;
             const rect = container.getBoundingClientRect();
-            
-            // Limit the height of the square to 75% of the viewport height, 
+
+            // Limit the height of the square to 75% of the viewport height,
             // ensuring it leaves space for the controls and header.
-            const maxHeight = window.innerHeight * 0.75; 
-            
+            const maxHeight = window.innerHeight * 0.75;
+
             // The size of the square is the minimum of the container's width or the calculated maximum height.
-            // This ensures the canvas fits the available horizontal space and the vertical space.
             const maxSize = Math.min(rect.width, maxHeight);
-            
+
             // Set both width and height to the calculated square size
             canvas.width = maxSize;
             canvas.height = maxSize;
-            
+
             // Set the canvas CSS width/height to the calculated size in pixels
             canvas.style.width = `${maxSize}px`;
             canvas.style.height = `${maxSize}px`;
@@ -341,11 +287,11 @@
             clearButton.addEventListener('click', clearAllStrokes);
         }
 
-        // --- Firestore Interaction ---
+        // --- Realtime Database Interaction ---
 
-        const getCollectionRef = () => {
-            const collectionPath = `artifacts/${appId}/public/data/${COLLECTION_NAME}`;
-            return collection(db, collectionPath);
+        const getRTDBRef = () => {
+            const path = `artifacts/${appId}/public/data/${RTDB_NODE_NAME}`;
+            return ref(dbRTDB, path);
         };
 
         async function saveCurrentChunk() {
@@ -360,51 +306,39 @@
                 color: colorPicker.value,
                 size: parseInt(sizeSlider.value),
                 points: currentStroke,
-                createdAt: currentTimestamp, // Use client timestamp for ordering
+                createdAt: currentTimestamp,
             };
 
-            const path = getCollectionRef();
+            const dbRef = getRTDBRef();
 
             try {
-                // Use a wrapper for robust writes
-                await firestoreRetryWrapper(() => addDoc(path, chunkData));
+                // Use push() to generate a unique key and save the data
+                await push(dbRef, chunkData);
                 console.log("Stroke chunk saved:", currentStroke.length, "points");
             } catch (e) {
-                console.error("Error adding document: ", e);
+                console.error("Error pushing data to RTDB: ", e);
+                showTemporaryMessage("Error saving drawing chunk.", "bg-red-100 text-red-700 border-red-300");
             }
 
             // Start the next chunk with the last point of the previous chunk
-            // This prevents gaps in the line when chunking occurs
             const lastPoint = currentStroke[currentStroke.length - 1];
             currentStroke = [{ x: lastPoint.x, y: lastPoint.y, t: lastPoint.t }];
         }
 
         function listenForStrokes() {
-            const q = query(getCollectionRef());
+            const dbRef = getRTDBRef();
 
-            onSnapshot(q, (snapshot) => {
-                let hasChanges = false;
-                snapshot.docChanges().forEach((change) => {
-                    const docData = change.doc.data();
-                    const docId = change.doc.id;
+            // onValue listens for all changes at the path
+            onValue(dbRef, (snapshot) => {
+                const data = snapshot.val();
+                // Realtime Database returns null if the node is empty
+                allStrokes = data || {};
 
-                    if (change.type === "added" || change.type === "modified") {
-                        allStrokes[docId] = { ...docData, id: docId };
-                        hasChanges = true;
-                    }
-                    if (change.type === "removed") {
-                        delete allStrokes[docId];
-                        hasChanges = true;
-                    }
-                });
-
-                if (hasChanges) {
-                    redrawAllStrokes();
-                }
-
+                redrawAllStrokes();
                 strokeCountSpan.textContent = Object.keys(allStrokes).length;
             }, (error) => {
-                console.error("Error listening to Firestore updates:", error);
+                console.error("Error listening to Realtime Database updates:", error);
+                showTemporaryMessage("Error syncing drawings. Check RTDB rules.", "bg-red-100 text-red-700 border-red-300");
             });
         }
 
@@ -412,10 +346,14 @@
             // Clear the canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Get strokes and sort them by creation time to maintain drawing order
-            const sortedStrokes = Object.values(allStrokes).sort((a, b) => a.createdAt - b.createdAt);
+            // Convert the RTDB object (key-value pairs) into an array of strokes,
+            // storing the RTDB key as the ID, and sort them by creation time.
+            const strokesArray = Object.keys(allStrokes).map(key => ({
+                ...allStrokes[key],
+                id: key, // Store the RTDB key (e.g., -N_g87...) as the ID
+            })).sort((a, b) => a.createdAt - b.createdAt);
 
-            sortedStrokes.forEach(stroke => {
+            strokesArray.forEach(stroke => {
                 if (stroke.points && stroke.points.length >= 2) {
                     // Iterate through points and draw segments
                     for (let i = 0; i < stroke.points.length - 1; i++) {
@@ -439,62 +377,48 @@
         }
 
         async function deleteLastChunk() {
-            // 1. Query the last chunk created by the current user
-            const q = query(
-                getCollectionRef(),
-                where("userId", "==", userId),
-                orderBy("createdAt", "desc"), // Assumes client-side timestamp is good enough for ordering
-                limit(1)
-            );
+            // 1. Find the last stroke chunk created by the current user (client-side sorting)
+            const strokesArray = Object.keys(allStrokes).map(key => ({
+                ...allStrokes[key],
+                id: key, // RTDB Key
+            }));
 
-            try {
-                const snapshot = await firestoreRetryWrapper(() => getDocs(q));
+            // Filter for the current user and sort in reverse chronological order
+            const userStrokes = strokesArray
+                .filter(stroke => stroke.userId === userId)
+                .sort((a, b) => b.createdAt - a.createdAt);
 
-                if (!snapshot.empty) {
-                    const docToDelete = snapshot.docs[0];
-                    const docId = docToDelete.id;
-                    const docRef = doc(getCollectionRef(), docId);
+            if (userStrokes.length > 0) {
+                const lastStrokeKey = userStrokes[0].id;
+                // Path to the specific stroke node
+                const strokeRef = ref(dbRTDB, `artifacts/${appId}/public/data/${RTDB_NODE_NAME}/${lastStrokeKey}`);
 
-                    // 2. Delete the document
-                    await firestoreRetryWrapper(() => deleteDoc(docRef), docId);
-                    console.log("Deleted user's last stroke chunk:", docId);
-                } else {
-                    console.log("No strokes found for deletion by this user.");
-                    // Use custom message box instead of alert
-                    showTemporaryMessage("You have no recent stroke chunks to undo.", "bg-blue-100 text-blue-700 border-blue-300");
+                try {
+                    // 2. Remove the node from the database
+                    await remove(strokeRef);
+                    console.log("Deleted user's last stroke chunk:", lastStrokeKey);
+                } catch (e) {
+                    console.error("Error deleting document:", e);
+                    showTemporaryMessage("Failed to undo stroke. See console for details.", "bg-red-100 text-red-700 border-red-300");
                 }
-            } catch (e) {
-                console.error("Error deleting document:", e);
-                showTemporaryMessage("Failed to undo stroke. See console for details.", "bg-red-100 text-red-700 border-red-300");
+            } else {
+                console.log("No strokes found for deletion by this user.");
+                showTemporaryMessage("You have no recent stroke chunks to undo.", "bg-blue-100 text-blue-700 border-blue-300");
             }
         }
 
         async function clearAllStrokes() {
-            // NOTE: Using a custom modal/message box is required, but since this relies on a global function `confirm()`
-            // to preserve the user's initial logic, I'll temporarily use this pattern for the prompt. 
-            // In a production environment, this should be replaced by a fully custom UI modal.
+            // Using a temporary modal replacement for confirm()
             if (!confirm("Are you sure you want to permanently clear ALL drawings for EVERYONE?")) {
                 return;
             }
 
-            const q = query(getCollectionRef());
+            const rootRef = getRTDBRef();
 
             try {
-                // Fetch all documents
-                const snapshot = await firestoreRetryWrapper(() => getDocs(q));
-
-                if (snapshot.empty) {
-                    showTemporaryMessage("The board is already clear.", "bg-gray-100 text-gray-700 border-gray-300");
-                    return;
-                }
-
-                // Delete all documents found
-                const deletePromises = snapshot.docs.map(docToDelete =>
-                    firestoreRetryWrapper(() => deleteDoc(doc(getCollectionRef(), docToDelete.id)))
-                );
-
-                await Promise.all(deletePromises);
-                showTemporaryMessage(`Successfully cleared ${snapshot.size} stroke chunks.`, "bg-green-100 text-green-700 border-green-300");
+                // Deleting the root reference is the most efficient way to clear everything in RTDB
+                await remove(rootRef);
+                showTemporaryMessage(`Successfully cleared the whiteboard.`, "bg-green-100 text-green-700 border-green-300");
 
             } catch (e) {
                 console.error("Error clearing all documents:", e);
