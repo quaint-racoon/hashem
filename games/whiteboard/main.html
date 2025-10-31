@@ -55,6 +55,26 @@
                     </label>
                     <input type="range" id="stroke-size" min="1" max="50" value="5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
                 </div>
+                
+                <!-- --- OBJECT TOOLS SECTION --- -->
+                <h2 class="text-xl font-semibold text-gray-700 mb-2 border-b pb-2 mt-4">Object Tools</h2>
+
+                <!-- Text Button -->
+                <button id="add-text-button" class="w-full py-2 px-4 bg-purple-500 hover:bg-purple-600 text-white font-semibold rounded-lg shadow-md transition duration-150 transform hover:scale-[1.01]">
+                    Add Text Label
+                </button>
+                
+                <!-- Image Upload (Now uses Firebase Storage) -->
+                <div class="mt-2 p-3 border border-gray-200 rounded-lg shadow-inner bg-gray-50">
+                    <label for="image-upload" class="block text-sm font-medium text-gray-700 mb-1">Upload Image (Uses Storage)</label>
+                    <input type="file" id="image-upload" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-100 file:text-purple-700 hover:file:bg-purple-200">
+                    <button id="upload-image-button" disabled class="mt-2 w-full py-2 px-4 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg shadow-md transition duration-150 transform hover:scale-[1.01] disabled:bg-green-300">
+                        Insert Image to Board
+                    </button>
+                    <!-- UPDATED WARNING TEXT -->
+                    <p class="text-xs text-green-700 mt-1">Images are uploaded to **Firebase Storage**, location saved in RTDB.</p>
+                </div>
+                <!-- --- END OBJECT TOOLS SECTION --- -->
 
                 <!-- Action Buttons -->
                 <div class="mt-4 space-y-3">
@@ -64,17 +84,17 @@
                     </button>
                     
                     <button id="undo-button" class="w-full py-2 px-4 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-lg shadow-md transition duration-150 transform hover:scale-[1.01]">
-                        Undo My Last Stroke Chunk
+                        Undo My Last Object
                     </button>
                     <button id="clear-my-drawings-button" class="w-full py-2 px-4 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg shadow-md transition duration-150 transform hover:scale-[1.01]">
-                        Clear My Drawings Only
+                        Clear My Objects Only
                     </button>
                 </div>
 
                 <!-- Active Strokes List (for debugging/info) -->
                 <div class="mt-6">
                     <h3 class="text-lg font-semibold text-gray-700 border-t pt-3">Live Status</h3>
-                    <p class="text-xs text-gray-500 mb-2">Total chunks: <span id="stroke-count" class="font-bold">0</span> (Across 9 Boards)</p>
+                    <p class="text-xs text-gray-500 mb-2">Total objects: <span id="stroke-count" class="font-bold">0</span> (Across 9 Boards)</p>
                     <div class="text-sm text-gray-700 mt-1">
                         Data storage: <span class="font-bold text-green-600">Realtime Database</span>
                     </div>
@@ -95,37 +115,41 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // New RTDB Import
+        // RTDB Import
         import { getDatabase, ref, onValue, push, remove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+        // NEW Storage Import
+        import { getStorage, ref as storageRef, uploadString, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         // Global variables provided by the Canvas environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = {
-  apiKey: "AIzaSyDtMk2diPOq5LQnJBtJjPdFukWhtJDhtso",
-  authDomain: "whiteboard-7eab0.firebaseapp.com",
-  databaseURL: "https://whiteboard-7eab0-default-rtdb.firebaseio.com",
-  projectId: "whiteboard-7eab0",
-  storageBucket: "whiteboard-7eab0.firebasestorage.app",
-  messagingSenderId: "564827963715",
-  appId: "1:564827963715:web:fbbacaa3168852f1c86ff6",
-  measurementId: "G-KVHX7GG6TE"
-};
+            apiKey: "AIzaSyDtMk2diPOq5LQnJBtJjPdFukWhtJDhtso",
+            authDomain: "whiteboard-7eab0.firebaseapp.com",
+            databaseURL: "https://whiteboard-7eab0-default-rtdb.firebaseio.com",
+            projectId: "whiteboard-7eab0",
+            storageBucket: "whiteboard-7eab0.firebasestorage.app",
+            messagingSenderId: "564827963715",
+            appId: "1:564827963715:web:fbbacaa3168852f1c86ff6",
+            measurementId: "G-KVHX7GG6TE"
+        };
 
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        let dbRTDB, auth, userId = null; 
+        // UPDATED: Added dbStorage
+        let dbRTDB, auth, dbStorage, userId = null; 
         let isDrawing = false;
         let currentStroke = []; 
         let lastTimestamp = 0;
 
-        // NEW State Variables for Multi-Board
+        // State Variables for Multi-Board and Data
         const BOARD_COUNT = 9;
         const RTDB_NODE_PREFIX = 'whiteboard_strokes_'; 
-        // Stores strokes keyed by board ID (1-9)
         let allStrokesByBoard = {}; 
-        // null for overview, 1-9 for zoomed view
         let currentBoardId = null;  
-
+        
+        // Global cache for loaded images
+        const IMAGE_CACHE = {}; 
+        
         // Reference to the currently active (zoomed) canvas element and context
         let currentCanvas = null; 
         let currentCtx = null;    
@@ -140,7 +164,7 @@
         const undoButton = document.getElementById('undo-button');
         const clearMyDrawingsButton = document.getElementById('clear-my-drawings-button');
         
-        // NEW References for the UI containers
+        // References for the UI containers
         const boardDisplayArea = document.getElementById('board-display-area'); 
         const backButton = document.getElementById('back-to-overview-button'); 
 
@@ -158,6 +182,7 @@
                 const app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 dbRTDB = getDatabase(app); 
+                dbStorage = getStorage(app); // NEW: Storage Initialization
 
                 await new Promise(resolve => {
                     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -288,13 +313,26 @@
             undoButton.addEventListener('click', deleteLastChunk);
             clearMyDrawingsButton.addEventListener('click', deleteMyDrawings);
             backButton.addEventListener('click', () => switchBoard(null));
+            
+            // Listeners for Text and Image
+            const addTextButton = document.getElementById('add-text-button');
+            const imageUpload = document.getElementById('image-upload');
+            const uploadImageButton = document.getElementById('upload-image-button');
+            
+            addTextButton.addEventListener('click', promptAndAddText);
+            
+            imageUpload.addEventListener('change', () => {
+                // Enable button only if a file is selected
+                uploadImageButton.disabled = imageUpload.files.length === 0;
+            });
+            
+            uploadImageButton.addEventListener('click', handleImageUpload);
         }
         
         /**
          * Attaches drawing handlers to the newly created zoomed canvas.
          */
         function setupZoomedCanvasListeners(targetCanvas) {
-            // Remove previous listeners if possible (though innerHTML usually cleans this up)
             targetCanvas.onmousedown = handleMouseDown;
             targetCanvas.onmousemove = handleMouseMove;
             targetCanvas.onmouseup = handleMouseUp; 
@@ -327,6 +365,7 @@
         // --- RTDB and Data Persistence ---
 
         const getRTDBRef = (boardId) => {
+            // Note: Keeping 'whiteboard_strokes_' for backward compatibility, but it now stores ALL objects.
             const path = `artifacts/${appId}/public/data/${RTDB_NODE_PREFIX}${boardId}`;
             return ref(dbRTDB, path);
         };
@@ -361,7 +400,25 @@
             for (const boardId in allStrokesByBoard) {
                 totalCount += Object.keys(allStrokesByBoard[boardId]).length;
             }
+            // Updated text to reflect all objects, not just strokes
             strokeCountSpan.textContent = totalCount;
+        }
+        
+        /**
+         * Generic function to save any object type (stroke, text, image) to RTDB.
+         */
+        async function saveObject(boardId, objectData) {
+            if (boardId === null) return;
+            
+            const dbRef = getRTDBRef(boardId);
+
+            try {
+                await push(dbRef, objectData);
+                showTemporaryMessage(`${objectData.type.toUpperCase()} object saved to Board ${boardId}.`, "bg-green-100 text-green-700 border-green-300");
+            } catch (e) {
+                console.error("Error pushing data to RTDB: ", e);
+                showTemporaryMessage(`Error saving ${objectData.type}. See console.`, "bg-red-100 text-red-700 border-red-300");
+            }
         }
 
         async function saveCurrentStroke() {
@@ -373,27 +430,119 @@
             if (currentStroke.length < 2) {
                 return;
             }
-
+            
             const currentTimestamp = Date.now();
             const strokeData = { 
+                type: 'stroke', // IMPORTANT: All objects must have a type
                 userId: userId,
                 color: colorPicker.value,
                 size: parseInt(sizeSlider.value),
                 points: currentStroke, 
                 createdAt: currentTimestamp,
             };
+            
+            await saveObject(currentBoardId, strokeData);
+        }
 
-            const dbRef = getRTDBRef(currentBoardId);
+        // --- Text Logic ---
 
-            try {
-                await push(dbRef, strokeData);
-                console.log(`Full stroke saved to board ${currentBoardId}:`, currentStroke.length, "points");
-            } catch (e) {
-                console.error("Error pushing data to RTDB: ", e);
-                showTemporaryMessage("Error saving drawing stroke.", "bg-red-100 text-red-700 border-red-300");
+        function promptAndAddText() {
+            if (currentBoardId === null) {
+                showTemporaryMessage("Please zoom into a board to add text.", "bg-yellow-100 text-yellow-700 border-yellow-300");
+                return;
+            }
+
+            // Use a simple prompt for text input
+            const textInput = window.prompt("Enter the text you want to add (will be placed in the center):", "Collaborative Text");
+            
+            if (textInput && textInput.trim().length > 0) {
+                // Default position to center of the canvas
+                const normalizedX = 500;
+                const normalizedY = 500;
+
+                const textObject = { 
+                    type: 'text',
+                    userId: userId,
+                    text: textInput.trim(),
+                    x: normalizedX,
+                    y: normalizedY,
+                    color: colorPicker.value,
+                    size: parseInt(sizeSlider.value), // Use stroke size for font size
+                    createdAt: Date.now(),
+                };
+
+                saveObject(currentBoardId, textObject);
             }
         }
         
+        // --- Image Logic (Now uses Firebase Storage) ---
+
+        function handleImageUpload() {
+            if (currentBoardId === null) {
+                showTemporaryMessage("Please zoom into a board to upload an image.", "bg-yellow-100 text-yellow-700 border-yellow-300");
+                return;
+            }
+            
+            const fileInput = document.getElementById('image-upload');
+            const file = fileInput.files[0];
+            
+            if (!file) return;
+
+            const uploadImageButton = document.getElementById('upload-image-button');
+            uploadImageButton.textContent = 'Preparing...';
+            uploadImageButton.disabled = true;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const base64Image = e.target.result;
+                
+                // 1. Define storage paths and file IDs
+                const imageId = Date.now().toString() + '_' + Math.random().toString(36).substring(2, 9);
+                const storagePath = `images/${appId}/${currentBoardId}/${userId}/${imageId}`;
+                const storageReference = storageRef(dbStorage, storagePath);
+                
+                try {
+                    uploadImageButton.textContent = 'Uploading file...';
+                    
+                    // 2. Upload Base64 string to Firebase Storage using the 'data_url' format
+                    const snapshot = await uploadString(storageReference, base64Image, 'data_url'); 
+                    
+                    // 3. Get the public download URL
+                    const downloadUrl = await getDownloadURL(snapshot.ref);
+                    
+                    uploadImageButton.textContent = 'Saving location...';
+                    
+                    // 4. Save metadata to RTDB
+                    const normalizedX = 500;
+                    const normalizedY = 500;
+                    
+                    const imageObject = {
+                        type: 'image',
+                        userId: userId,
+                        src: downloadUrl, // Store the public URL
+                        storagePath: storagePath, // Store path for deletion later
+                        x: normalizedX,
+                        y: normalizedY,
+                        createdAt: Date.now(),
+                    };
+
+                    await saveObject(currentBoardId, imageObject); // saveObject function pushes to RTDB
+                    showTemporaryMessage("Image uploaded to Storage and registered on board.", "bg-green-100 text-green-700 border-green-300");
+
+                } catch (error) {
+                    console.error("Error during image upload to Firebase Storage:", error);
+                    showTemporaryMessage(`Image upload failed: ${error.message}`, "bg-red-100 text-red-700 border-red-300");
+                } finally {
+                    // Reset UI after saving attempt
+                    fileInput.value = ''; 
+                    uploadImageButton.textContent = 'Insert Image to Board';
+                    uploadImageButton.disabled = true;
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+
         // --- Redrawing Logic ---
 
         /**
@@ -407,56 +556,117 @@
             
             context.clearRect(0, 0, canvasWidth, canvasWidth);
             
-            drawBoardStrokes(currentBoardId, currentCanvas, true); // Use actual size
+            // Draw all object types
+            drawBoardObjects(currentBoardId, currentCanvas, true); 
         }
 
         /**
-         * Draws strokes onto a given canvas.
-         * @param {number} boardId - The ID of the board whose strokes to draw.
+         * Draws all stored objects (strokes, text, images) onto a given canvas.
+         * @param {number} boardId - The ID of the board whose objects to draw.
          * @param {HTMLCanvasElement} targetCanvas - The canvas element to draw onto.
-         * @param {boolean} [isZoomed=false] - If true, uses the actual stroke size. If false (overview), scales it down.
+         * @param {boolean} [isZoomed=false] - If true, uses the actual stroke/font size. If false (overview), scales it down.
          */
-        function drawBoardStrokes(boardId, targetCanvas, isZoomed = false) {
+        function drawBoardObjects(boardId, targetCanvas, isZoomed = false) {
             const context = targetCanvas.getContext('2d');
-            const strokes = allStrokesByBoard[boardId] || {};
+            const objects = allStrokesByBoard[boardId] || {}; 
             const canvasWidth = targetCanvas.width;
+            const scaleFactor = canvasWidth / 1000;
             
-            // Clear only for the small canvas redraws in overview mode
             if (!isZoomed) {
                  context.clearRect(0, 0, canvasWidth, canvasWidth);
             }
 
-            const strokesArray = Object.keys(strokes).map(key => ({
-                ...strokes[key],
+            const objectsArray = Object.keys(objects).map(key => ({
+                ...objects[key],
                 id: key, 
+                // Ensure type defaults to 'stroke' for backward compatibility
+                type: objects[key].type || 'stroke' 
             })).sort((a, b) => a.createdAt - b.createdAt);
 
-            strokesArray.forEach(stroke => {
-                if (stroke.points && stroke.points.length >= 2) {
-                    const lineWidth = isZoomed ? stroke.size : Math.max(1, stroke.size / 3); // Scale down line width for overview
+            objectsArray.forEach(object => {
+                // Denormalized positions based on canvas size
+                const dx = (object.x / 1000) * canvasWidth;
+                const dy = (object.y / 1000) * canvasWidth;
+                
+                switch (object.type) {
+                    case 'stroke':
+                        if (object.points && object.points.length >= 2) {
+                            const lineWidth = isZoomed ? object.size : Math.max(1, object.size / 3); 
 
-                    for (let i = 0; i < stroke.points.length - 1; i++) {
-                        const p1 = stroke.points[i];
-                        const p2 = stroke.points[i + 1];
+                            for (let i = 0; i < object.points.length - 1; i++) {
+                                const p1 = object.points[i];
+                                const p2 = object.points[i + 1];
 
-                        // Denormalize coordinates from 0-1000 range to current canvas size
-                        const start = {
-                            x: (p1.x / 1000) * canvasWidth,
-                            y: (p1.y / 1000) * canvasWidth
-                        };
-                        const end = {
-                            x: (p2.x / 1000) * canvasWidth,
-                            y: (p2.y / 1000) * canvasWidth
-                        };
+                                const start = {
+                                    x: (p1.x / 1000) * canvasWidth,
+                                    y: (p1.y / 1000) * canvasWidth
+                                };
+                                const end = {
+                                    x: (p2.x / 1000) * canvasWidth,
+                                    y: (p2.y / 1000) * canvasWidth
+                                };
 
-                        context.beginPath();
-                        context.moveTo(start.x, start.y);
-                        context.lineTo(end.x, end.y);
-                        context.strokeStyle = stroke.color;
-                        context.lineWidth = lineWidth; 
-                        context.lineCap = 'round';
-                        context.stroke();
-                    }
+                                context.beginPath();
+                                context.moveTo(start.x, start.y);
+                                context.lineTo(end.x, end.y);
+                                context.strokeStyle = object.color;
+                                context.lineWidth = lineWidth; 
+                                context.lineCap = 'round';
+                                context.stroke();
+                            }
+                        }
+                        break;
+                        
+                    case 'text':
+                        // Use stroke size for font size, scaled up for better readability
+                        const fontSize = isZoomed ? object.size * 2 : Math.max(8, object.size); 
+                        
+                        context.font = `${fontSize}px Inter, sans-serif`; 
+                        context.fillStyle = object.color;
+                        context.textAlign = 'center';
+                        context.textBaseline = 'middle';
+                        
+                        context.fillText(object.text, dx, dy);
+                        break;
+                        
+                    case 'image':
+                        const imageKey = object.id;
+                        let image = IMAGE_CACHE[imageKey];
+                        
+                        if (!image) {
+                            // Load image into cache
+                            image = new Image();
+                            image.onload = () => {
+                                IMAGE_CACHE[imageKey] = image; 
+                                // Redraw the canvas once the image is ready
+                                if (currentBoardId === boardId) {
+                                    redrawSingleCanvas(); 
+                                } else {
+                                    const miniCanvas = document.getElementById(`board-mini-${boardId}`);
+                                    if (miniCanvas) drawBoardObjects(boardId, miniCanvas, false);
+                                }
+                            };
+                            image.onerror = () => {
+                                 console.error("Error loading image for drawing:", imageKey);
+                            };
+                            // object.src is now the Firebase Storage Download URL
+                            image.src = object.src; 
+                        } 
+                        
+                        // If the image is loaded, draw it
+                        if (image && (image.complete || image.naturalWidth > 0)) {
+                            // Example size 150px zoomed, 50px overview
+                            const width = isZoomed ? 150 * scaleFactor : 50 * scaleFactor; 
+                            const height = width; 
+                            
+                            context.drawImage(image, dx - width / 2, dy - height / 2, width, height);
+                            
+                            // Add a small border to identify the image boundary
+                            context.strokeStyle = 'rgba(0,0,0,0.5)';
+                            context.lineWidth = 1;
+                            context.strokeRect(dx - width / 2, dy - height / 2, width, height);
+                        }
+                        break;
                 }
             });
         }
@@ -496,10 +706,10 @@
             for (let i = 1; i <= BOARD_COUNT; i++) {
                 const miniCanvas = document.getElementById(`board-mini-${i}`);
                 if (miniCanvas) {
-                    drawBoardStrokes(i, miniCanvas, false);
+                    // Use the new unified draw function
+                    drawBoardObjects(i, miniCanvas, false);
                     
                     const wrapper = document.getElementById(`quadrant-wrapper-${i}`);
-                    // Use a direct click handler instead of binding to a function property
                     wrapper.addEventListener('click', (e) => {
                         const boardId = parseInt(e.currentTarget.dataset.boardId);
                         if (!isNaN(boardId)) {
@@ -547,77 +757,112 @@
 
 
         // --- Delete/Undo Logic (Scoped to Current Zoomed Board) ---
+        
+        /**
+         * Attempts to delete a file from Firebase Storage.
+         * @param {string} storagePath - The full path to the file in Storage.
+         */
+        async function deleteStorageFile(storagePath) {
+            if (!dbStorage || !storagePath) return;
+            try {
+                const fileRef = storageRef(dbStorage, storagePath);
+                await deleteObject(fileRef);
+                console.log(`Successfully deleted file from Storage: ${storagePath}`);
+            } catch (e) {
+                // Ignore 'storage/object-not-found' errors, but log others
+                if (e.code !== 'storage/object-not-found') {
+                    console.warn(`Could not delete storage file ${storagePath}:`, e);
+                }
+            }
+        }
 
         async function deleteLastChunk() {
             if (currentBoardId === null) {
-                showTemporaryMessage("Please zoom into a board to undo a stroke.", "bg-yellow-100 text-yellow-700 border-yellow-300");
+                showTemporaryMessage("Please zoom into a board to undo an object.", "bg-yellow-100 text-yellow-700 border-yellow-300");
                 return;
             }
             
             const boardStrokes = allStrokesByBoard[currentBoardId] || {};
 
-            const strokesArray = Object.keys(boardStrokes).map(key => ({
+            const objectsArray = Object.keys(boardStrokes).map(key => ({
                 ...boardStrokes[key],
                 id: key, // RTDB Key
             }));
 
             // Filter for the current user and sort in reverse chronological order
-            const userStrokes = strokesArray
-                .filter(stroke => stroke.userId === userId)
+            const userObjects = objectsArray
+                .filter(object => object.userId === userId)
                 .sort((a, b) => b.createdAt - a.createdAt);
 
-            if (userStrokes.length > 0) {
-                const lastStrokeKey = userStrokes[0].id;
-                // Path to the specific stroke node on the current board
-                const strokeRef = ref(dbRTDB, `artifacts/${appId}/public/data/${RTDB_NODE_PREFIX}${currentBoardId}/${lastStrokeKey}`);
+            if (userObjects.length > 0) {
+                const lastObject = userObjects[0];
+                const lastObjectKey = lastObject.id;
+                // Path to the specific object node on the current board
+                const objectRef = ref(dbRTDB, `artifacts/${appId}/public/data/${RTDB_NODE_PREFIX}${currentBoardId}/${lastObjectKey}`);
 
                 try {
-                    await remove(strokeRef);
-                    showTemporaryMessage(`Deleted your last stroke chunk from Board ${currentBoardId}.`, "bg-green-100 text-green-700 border-green-300");
+                    // NEW: Delete the corresponding storage file if it's an image
+                    if (lastObject.type === 'image' && lastObject.storagePath) {
+                        await deleteStorageFile(lastObject.storagePath);
+                    }
+                    
+                    await remove(objectRef);
+                    showTemporaryMessage(`Deleted your last object (${lastObject.type}) from Board ${currentBoardId}.`, "bg-green-100 text-green-700 border-green-300");
                 } catch (e) {
                     console.error("Error deleting document:", e);
-                    showTemporaryMessage("Failed to undo stroke. See console for details.", "bg-red-100 text-red-700 border-red-300");
+                    showTemporaryMessage("Failed to undo object. See console for details.", "bg-red-100 text-red-700 border-red-300");
                 }
             } else {
-                showTemporaryMessage(`You have no recent stroke chunks to undo on Board ${currentBoardId}.`, "bg-blue-100 text-blue-700 border-blue-300");
+                showTemporaryMessage(`You have no recent objects (strokes, text, images) to undo on Board ${currentBoardId}.`, "bg-blue-100 text-blue-700 border-blue-300");
             }
         }
 
         async function deleteMyDrawings() {
              if (currentBoardId === null) {
-                showTemporaryMessage("Please zoom into a board to clear your drawings.", "bg-yellow-100 text-yellow-700 border-yellow-300");
+                showTemporaryMessage("Please zoom into a board to clear your objects.", "bg-yellow-100 text-yellow-700 border-yellow-300");
                 return;
             }
             
-            if (!confirm(`Are you sure you want to permanently clear ALL of YOUR drawings from Board ${currentBoardId}? This will not affect other users or other boards.`)) {
+            // Updated confirmation message
+            if (!confirm(`Are you sure you want to permanently clear ALL of YOUR objects (drawings, text, images) from Board ${currentBoardId}? This will not affect other users or other boards.`)) {
                 return;
             }
 
             const boardStrokes = allStrokesByBoard[currentBoardId] || {};
-            const strokeKeysToDelete = Object.keys(boardStrokes).filter(key => boardStrokes[key].userId === userId);
+            
+            // Find all objects for the current user to get their storage paths
+            const userObjectsToDelete = Object.keys(boardStrokes)
+                .filter(key => boardStrokes[key].userId === userId)
+                .map(key => ({...boardStrokes[key], id: key}));
 
-            if (strokeKeysToDelete.length === 0) {
-                showTemporaryMessage(`You have no drawings on Board ${currentBoardId} to clear.`, "bg-blue-100 text-blue-700 border-blue-300");
+            if (userObjectsToDelete.length === 0) {
+                showTemporaryMessage(`You have no objects on Board ${currentBoardId} to clear.`, "bg-blue-100 text-blue-700 border-blue-300");
                 return;
             }
 
             const rootPath = `artifacts/${appId}/public/data/${RTDB_NODE_PREFIX}${currentBoardId}`;
             let successfulDeletes = 0;
 
-            for (const key of strokeKeysToDelete) {
-                const strokeRef = ref(dbRTDB, `${rootPath}/${key}`);
+            for (const object of userObjectsToDelete) {
+                // NEW: Delete the Storage file first if it's an image
+                if (object.type === 'image' && object.storagePath) {
+                    await deleteStorageFile(object.storagePath);
+                }
+                
+                // Then delete the RTDB record
+                const objectRef = ref(dbRTDB, `${rootPath}/${object.id}`);
                 try {
-                    await remove(strokeRef);
+                    await remove(objectRef);
                     successfulDeletes++;
                 } catch (e) {
-                    console.error(`Error deleting stroke ${key}:`, e);
+                    console.error(`Error deleting RTDB object ${object.id}:`, e);
                 }
             }
 
-            if (successfulDeletes === strokeKeysToDelete.length) {
-                showTemporaryMessage(`Successfully cleared ${successfulDeletes} of your drawings from Board ${currentBoardId}.`, "bg-green-100 text-green-700 border-green-300");
+            if (successfulDeletes === userObjectsToDelete.length) {
+                showTemporaryMessage(`Successfully cleared ${successfulDeletes} of your objects from Board ${currentBoardId}.`, "bg-green-100 text-green-700 border-green-300");
             } else {
-                showTemporaryMessage(`Finished clearing. ${successfulDeletes}/${strokeKeysToDelete.length} strokes deleted successfully.`, "bg-yellow-100 text-yellow-700 border-yellow-300");
+                showTemporaryMessage(`Finished clearing. ${successfulDeletes}/${userObjectsToDelete.length} objects deleted successfully.`, "bg-yellow-100 text-yellow-700 border-yellow-300");
             }
         }
 
