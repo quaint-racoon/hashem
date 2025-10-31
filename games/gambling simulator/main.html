@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emoji Slot Machine</title>
+    <!-- Load Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom font */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        
+        /* Define the quick spin animation for visual feedback */
+        @keyframes spin {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-300%); } /* A loop to simulate rapid scrolling */
+        }
+
+        .reel {
+            /* Ensures only the current emoji is visible */
+            overflow: hidden; 
+            height: 4rem; /* Fixed height for one emoji */
+            line-height: 4rem; /* Center text vertically */
+        }
+
+        .reel-content {
+            display: flex;
+            flex-direction: column;
+            /* This transition is key for the staggered stopping effect */
+            transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .spinning {
+            animation: spin 0.1s linear infinite; /* Quick infinite spin */
+        }
+
+        /* Custom lever styling */
+        .lever-button {
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Styling for the red ball handle (The "🔴") */
+        .lever-ball {
+            width: 40px;
+            height: 40px;
+            background-color: #ef4444; /* Red-500 */
+            border-radius: 50%;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(255, 255, 255, 0.5);
+            transition: transform 0.1s ease-out;
+        }
+        
+        /* Styling for the stick */
+        .lever-stick {
+            width: 8px;
+            height: 60px;
+            background-color: #a16207; /* Amber-700 */
+            border-radius: 4px;
+            margin-top: -5px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Visual effect when the lever is pulled */
+        .lever-pulled .lever-ball {
+            transform: translateY(10px);
+        }
+
+        /* Basic container style */
+        .slot-machine-container {
+            min-height: 100vh;
+            background-color: #1f2937; /* Dark Gray Background */
+        }
+    </style>
+</head>
+<body class="slot-machine-container font-['Inter'] text-gray-100">
+
+    <div class="flex flex-col items-center justify-center p-4">
+        
+        <!-- Header -->
+        <header class="text-center mb-6 mt-8">
+            <h1 class="text-5xl font-extrabold text-yellow-400 drop-shadow-lg">
+                <span class="text-6xl">🎰</span> DADDY'S JACKPOT <span class="text-6xl">🎰</span>
+            </h1>
+            <p id="message" class="text-lg mt-2 text-white font-semibold">Ready to test your luck!</p>
+        </header>
+
+        <!-- Slot Machine Body -->
+        <div class="bg-gray-800 p-8 rounded-xl shadow-2xl max-w-sm w-full border-b-8 border-yellow-600">
+            
+            <!-- Balance & Bet Display -->
+            <div class="flex justify-between text-xl font-bold mb-6 p-3 bg-gray-900 rounded-lg border-2 border-yellow-500">
+                <span>Balance: <span id="balance">$100</span></span>
+                <span>Bet: $<span id="bet">5</span></span>
+            </div>
+            
+            <!-- Reels Display -->
+            <div id="reels-container" class="flex justify-around items-center bg-gray-900 p-4 rounded-lg border-4 border-gray-600 shadow-inner">
+                <div class="reel w-1/3 text-center text-6xl font-black">
+                    <div id="reel1" class="reel-content">?</div>
+                </div>
+                <div class="reel w-1/3 text-center text-6xl font-black">
+                    <div id="reel2" class="reel-content">?</div>
+                </div>
+                <div class="reel w-1/3 text-center text-6xl font-black">
+                    <div id="reel3" class="reel-content">?</div> 
+                </div> 
+            </div> 
+            
+            <!-- Lever and Message Container -->
+            <div class="flex justify-center items-end mt-8">
+                
+                <!-- The Lever: Stick and Red Ball -->
+                <button id="lever-btn" class="lever-button" onclick="pullLever()">
+                    <div id="lever-ball" class="lever-ball"></div>
+                    <div class="lever-stick"></div>
+                </button>
+
+            </div>
+
+        </div>
+
+        <!-- Pop-up/Message Box (Used instead of alert()) -->
+        <div id="message-box" class="fixed inset-0 bg-black bg-opacity-70 hidden items-center justify-center p-4 z-50">
+            <div class="bg-white p-8 rounded-xl shadow-2xl text-gray-800 text-center max-w-sm">
+                <h3 id="modal-title" class="text-3xl font-bold mb-4 text-red-600">Game Over</h3>
+                <p id="modal-text" class="mb-6 text-lg">You ran out of funds!</p>
+                <button onclick="document.getElementById('message-box').classList.add('hidden')" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">Close</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- GAME LOGIC (Mirroring C++) ---
+        const EMOJIS = ["🍒", "🍋", "🔔", "💎", "7️⃣"];
+        const WIN_PAYOUT = 100;
+        const BET_AMOUNT = 5;
+
+        let balance = 100;
+        let isSpinning = false;
+        
+        // DOM Element References
+        const balanceEl = document.getElementById('balance');
+        const reels = [
+            document.getElementById('reel1'),
+            document.getElementById('reel2'),
+            document.getElementById('reel3')
+        ];
+        const leverBtn = document.getElementById('lever-btn');
+        const mainMessageEl = document.getElementById('message');
+        const messageBox = document.getElementById('message-box');
+        const modalTitleEl = document.getElementById('modal-title');
+        const modalTextEl = document.getElementById('modal-text');
+
+        /**
+         * @brief Shows a custom modal pop-up message.
+         */
+        function showMessage(title, text, isGameOver = false) {
+            modalTitleEl.textContent = title;
+            modalTextEl.textContent = text;
+            // Set colors based on context
+            modalTitleEl.classList.toggle('text-red-600', isGameOver);
+            modalTitleEl.classList.toggle('text-green-600', !isGameOver && title !== "NOTICE");
+            modalTitleEl.classList.toggle('text-yellow-600', title === "NOTICE");
+            
+            messageBox.classList.remove('hidden');
+            messageBox.classList.add('flex');
+        }
+
+        /**
+         * @brief Updates the balance display and checks for game over.
+         */
+        function updateDisplay() {
+            balanceEl.textContent = '$' + balance;
+            if (balance < BET_AMOUNT) {
+                leverBtn.disabled = true;
+                mainMessageEl.textContent = "GAME OVER! You ran out of money. Refresh to play again.";
+                showMessage("Game Over", "You've run out of credits! Please refresh the page to start over.", true);
+            }
+        }
+
+        /**
+         * @brief Handles the asynchronous spinning and stopping of a single reel.
+         * @param {number} index - The index of the reel (0, 1, or 2).
+         * @returns {Promise<string>} The final emoji result.
+         */
+        function spinReel(index) {
+            return new Promise(resolve => {
+                const reelEl = reels[index];
+                
+                reelEl.classList.add('spinning');
+                
+                // Staggered stop times for visual effect (like a real slot machine)
+                const spinDuration = 1500 + (index * 500); // 1.5s, 2.0s, 2.5s
+
+                setTimeout(() => {
+                    // Stop the spinning animation
+                    reelEl.classList.remove('spinning');
+
+                    // Pick the final emoji
+                    const randomIndex = Math.floor(Math.random() * EMOJIS.length);
+                    const finalEmoji = EMOJIS[randomIndex];
+                    
+                    // Set the final visible emoji
+                    reelEl.textContent = finalEmoji;
+
+                    resolve(finalEmoji);
+                }, spinDuration);
+            });
+        }
+
+        /**
+         * @brief Main function called when the user pulls the lever.
+         */
+        async function pullLever() {
+            if (isSpinning || balance < BET_AMOUNT) {
+                if (balance < BET_AMOUNT) {
+                    showMessage("NOTICE", "Not enough money to play! You need $" + BET_AMOUNT + ".", true);
+                }
+                return;
+            }
+
+            isSpinning = true;
+            leverBtn.disabled = true;
+            leverBtn.classList.add('lever-pulled');
+            
+            // Deduct bet and update message
+            balance -= BET_AMOUNT;
+            updateDisplay();
+            mainMessageEl.textContent = "Spinning... Good luck!";
+            
+            // 1. Wait for all three reels to stop
+            const results = await Promise.all([
+                spinReel(0),
+                spinReel(1),
+                spinReel(2)
+            ]);
+
+            // 2. Stop the lever animation
+            leverBtn.classList.remove('lever-pulled');
+            
+            // 3. Check win condition (Triple Match)
+            const [r1, r2, r3] = results;
+            
+            if (r1 === r2 && r2 === r3) {
+                // WIN!
+                balance += WIN_PAYOUT;
+                mainMessageEl.textContent = `🎉 JACKPOT! TRIPLE ${r1}! You won $${WIN_PAYOUT}!`;
+                showMessage("JACKPOT!", `You matched three ${r1} and won $${WIN_PAYOUT}!`, false);
+            } else {
+                mainMessageEl.textContent = "No luck this time. Pull again!";
+            }
+
+            // 4. Final state update
+            updateDisplay();
+            isSpinning = false;
+            leverBtn.disabled = (balance < BET_AMOUNT);
+        }
+
+        // Initialization
+        updateDisplay();
+        
+    </script>
+</body>
+</html>
