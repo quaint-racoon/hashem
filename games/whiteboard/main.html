@@ -686,14 +686,17 @@
                         break;
                         
                     case 'text':
-                        // FIX: Scale font size based on zoom state. 
-                        // The original size is stroke size (1-50), which is too small for text, 
-                        // so we multiply it when zoomed. When in overview, we scale it down relative 
-                        // to the canvas scale factor.
-                        const baseSize = object.size * 2; // Base size is doubled stroke size for legibility
-                        const fontSize = isZoomed ? baseSize : Math.max(8, baseSize * scaleFactor * 2); 
+                        // VIRTUAL SIZE: The size of the text on the conceptual 1000x1000 board.
+                        // Use a multiplier (e.g., 4) for legibility, as stroke size (1-50) is too small for text.
+                        const virtualFontSize = object.size * 4; 
                         
-                        context.font = `${fontSize}px Inter, sans-serif`; 
+                        // FINAL FONT SIZE:
+                        const finalFontSize = isZoomed 
+                            ? virtualFontSize // If zoomed (large canvas), use the full virtual size (e.g., 20px)
+                            // If overview (small canvas), scale the virtual size down by the canvas scale factor.
+                            : Math.max(8, virtualFontSize * scaleFactor); 
+                        
+                        context.font = `${finalFontSize}px Inter, sans-serif`; 
                         context.fillStyle = object.color;
                         context.textAlign = 'center';
                         context.textBaseline = 'middle';
