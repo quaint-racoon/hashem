@@ -769,7 +769,8 @@
                     
                     const wrapper = document.getElementById(`quadrant-wrapper-${i}`);
                     wrapper.addEventListener('click', (e) => {
-                        const boardId = parseInt(e.currentTarget.dataset.board-id);
+                        // FIX: Changed dataset.board-id to dataset.boardId (camelCase)
+                        const boardId = parseInt(e.currentTarget.dataset.boardId);
                         if (!isNaN(boardId)) {
                             switchBoard(boardId);
                         }
