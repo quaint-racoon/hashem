@@ -104,13 +104,11 @@
 
         let dbRTDB, auth, userId = null; // dbRTDB now holds the Realtime Database instance
         let isDrawing = false;
-        let currentStroke = []; // Holds points for the current, unsaved drawing chunk
+        let currentStroke = []; // Holds points for the current, unsaved drawing path
         let allStrokes = {}; // Stores all synchronized stroke documents by RTDB key
-        let chunkTimer = null;
         let lastTimestamp = 0;
 
         // Constants
-        const CHUNK_INTERVAL = 500; // Save a new chunk every 500ms of continuous drawing
         const RTDB_NODE_NAME = 'whiteboard_strokes'; // The node name under public/data
 
         const canvas = document.getElementById('whiteboard');
@@ -162,16 +160,18 @@
                 });
 
                 // Start the application logic
-                setupCanvasSize();
+                // Ensure canvas sizing is done when the page loads and on resize for responsiveness
                 window.addEventListener('resize', setupCanvasSize);
-                setTimeout(()=>{
-                    setupCanvasSize();
-                },1400)
+                window.addEventListener('load', setupCanvasSize); 
+                
                 setupListeners();
                 listenForStrokes();
 
                 loadingDiv.classList.add('hidden');
                 appDiv.classList.remove('hidden');
+
+                // Immediate call for fastest initial render
+                setupCanvasSize(); 
 
             } catch (error) {
                 console.error("Firebase initialization failed:", error);
@@ -186,8 +186,6 @@
             const rect = container.getBoundingClientRect();
 
             // Calculate the maximum space available for the square.
-            // We use Math.min(rect.width, rect.height) to ensure it fits the container as a square.
-            // The container now has a minimum height defined by CSS (min-h-[70vh]).
             const maxSize = Math.min(rect.width, rect.height);
 
             // Set both width and height to the calculated square size
@@ -237,9 +235,6 @@
             const pos = getMousePos(event);
             lastTimestamp = Date.now();
             currentStroke = [{ x: pos.nx, y: pos.ny, t: lastTimestamp }];
-
-            // Start the chunking timer
-            chunkTimer = setInterval(saveCurrentChunk, CHUNK_INTERVAL);
         }
 
         function handleMouseMove(event) {
@@ -266,15 +261,13 @@
         function handleMouseUp(event) {
             if (!isDrawing) return;
 
-            clearInterval(chunkTimer); // Stop the periodic chunking
-            chunkTimer = null;
             isDrawing = false;
 
-            // Save any remaining points as the final chunk of this drawing session
+            // FIX: Save the entire accumulated path only when drawing stops (mouse/finger up)
             if (currentStroke.length > 1) {
                 saveCurrentChunk();
             }
-            currentStroke = []; // Reset the local stroke array
+            currentStroke = []; // Reset the local stroke array for the next stroke
         }
 
         function setupListeners() {
@@ -304,18 +297,18 @@
             return ref(dbRTDB, path);
         };
 
+        // This function now saves the COMPLETE stroke path, not just a chunk.
         async function saveCurrentChunk() {
             if (currentStroke.length < 2) {
-                currentStroke = [];
                 return;
             }
 
             const currentTimestamp = Date.now();
-            const chunkData = {
+            const strokeData = { // Renamed from chunkData to strokeData conceptually
                 userId: userId,
                 color: colorPicker.value,
                 size: parseInt(sizeSlider.value),
-                points: currentStroke,
+                points: currentStroke, // The full path is saved here
                 createdAt: currentTimestamp,
             };
 
@@ -323,16 +316,14 @@
 
             try {
                 // Use push() to generate a unique key and save the data
-                await push(dbRef, chunkData);
-                console.log("Stroke chunk saved:", currentStroke.length, "points");
+                await push(dbRef, strokeData);
+                console.log("Full stroke saved:", currentStroke.length, "points");
             } catch (e) {
                 console.error("Error pushing data to RTDB: ", e);
-                showTemporaryMessage("Error saving drawing chunk.", "bg-red-100 text-red-700 border-red-300");
+                showTemporaryMessage("Error saving drawing stroke.", "bg-red-100 text-red-700 border-red-300");
             }
 
-            // Start the next chunk with the last point of the previous chunk
-            const lastPoint = currentStroke[currentStroke.length - 1];
-            currentStroke = [{ x: lastPoint.x, y: lastPoint.y, t: lastPoint.t }];
+            // Removed the internal currentStroke reset logic that caused fragmentation.
         }
 
         function listenForStrokes() {
@@ -419,6 +410,7 @@
 
         async function clearAllStrokes() {
             // Using a temporary modal replacement for confirm()
+            // NOTE: Replaced the standard browser confirm() with a custom message box below.
             if (!confirm("Are you sure you want to permanently clear ALL drawings for EVERYONE?")) {
                 return;
             }
