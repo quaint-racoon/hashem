@@ -93,7 +93,17 @@
 
         // Global variables provided by the Canvas environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const firebaseConfig = {
+  apiKey: "AIzaSyDtMk2diPOq5LQnJBtJjPdFukWhtJDhtso",
+  authDomain: "whiteboard-7eab0.firebaseapp.com",
+  databaseURL: "https://whiteboard-7eab0-default-rtdb.firebaseio.com",
+  projectId: "whiteboard-7eab0",
+  storageBucket: "whiteboard-7eab0.firebasestorage.app",
+  messagingSenderId: "564827963715",
+  appId: "1:564827963715:web:fbbacaa3168852f1c86ff6",
+  measurementId: "G-KVHX7GG6TE"
+};
+
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         let db, auth, userId = null;
