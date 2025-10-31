@@ -214,7 +214,8 @@
                 });
 
                 // Start the application logic
-                window.addEventListener('resize', () => switchBoard(null)); // On resize, refresh overview
+                // Ensure switchBoard is called on load and resize to maintain aspect ratio
+                window.addEventListener('resize', () => switchBoard(currentBoardId)); 
                 window.addEventListener('load', () => switchBoard(null)); 
                 
                 setupListeners();
@@ -223,7 +224,8 @@
                 loadingDiv.classList.add('hidden');
                 appDiv.classList.remove('hidden');
 
-                switchBoard(null); // Initial render starts in overview mode
+                // Initial render will happen inside the load listener
+                // switchBoard(null); 
 
             } catch (error) {
                 console.error("Firebase initialization failed:", error);
@@ -457,7 +459,14 @@
 
                     // Redraw the relevant view based on current mode
                     if (currentBoardId === null) {
-                        renderOverview();
+                        // In overview, we redraw the specific mini-canvas that changed
+                        const miniCanvas = document.getElementById(`board-mini-${id}`);
+                        if (miniCanvas) {
+                             drawBoardObjects(id, miniCanvas, false);
+                        } else {
+                            // Fallback to full overview render if the mini-canvas isn't ready yet (e.g., first load)
+                            renderOverview();
+                        }
                     } else if (currentBoardId === id) {
                         redrawSingleCanvas();
                     }
@@ -628,7 +637,7 @@
             const context = targetCanvas.getContext('2d');
             const objects = allStrokesByBoard[boardId] || {}; 
             const canvasWidth = targetCanvas.width;
-            const scaleFactor = canvasWidth / 1000;
+            const scaleFactor = canvasWidth / 1000; // Normalized scale factor (1000 is our virtual grid size)
             
             if (!isZoomed) {
                  context.clearRect(0, 0, canvasWidth, canvasWidth);
@@ -649,7 +658,8 @@
                 switch (object.type) {
                     case 'stroke':
                         if (object.points && object.points.length >= 2) {
-                            const lineWidth = isZoomed ? object.size : Math.max(1, object.size / 3); 
+                            // Stroke width scaling: zoomed uses original size, overview scales down
+                            const lineWidth = isZoomed ? object.size : Math.max(1, object.size * scaleFactor); 
 
                             for (let i = 0; i < object.points.length - 1; i++) {
                                 const p1 = object.points[i];
@@ -676,8 +686,12 @@
                         break;
                         
                     case 'text':
-                        // Use stroke size for font size, scaled up for better readability
-                        const fontSize = isZoomed ? object.size * 2 : Math.max(8, object.size); 
+                        // FIX: Scale font size based on zoom state. 
+                        // The original size is stroke size (1-50), which is too small for text, 
+                        // so we multiply it when zoomed. When in overview, we scale it down relative 
+                        // to the canvas scale factor.
+                        const baseSize = object.size * 2; // Base size is doubled stroke size for legibility
+                        const fontSize = isZoomed ? baseSize : Math.max(8, baseSize * scaleFactor * 2); 
                         
                         context.font = `${fontSize}px Inter, sans-serif`; 
                         context.fillStyle = object.color;
@@ -696,13 +710,10 @@
                             image = new Image();
                             image.onload = () => {
                                 IMAGE_CACHE[imageKey] = image; 
-                                // Redraw the canvas once the image is ready
-                                if (currentBoardId === boardId) {
-                                    redrawSingleCanvas(); 
-                                } else {
-                                    const miniCanvas = document.getElementById(`board-mini-${boardId}`);
-                                    if (miniCanvas) drawBoardObjects(boardId, miniCanvas, false);
-                                }
+                                // FIX: Redraw the specific mini-canvas once the image is ready
+                                const miniCanvas = document.getElementById(`board-mini-${boardId}`);
+                                if (miniCanvas) drawBoardObjects(boardId, miniCanvas, false);
+                                if (currentBoardId === boardId) redrawSingleCanvas();
                             };
                             image.onerror = () => {
                                  console.error("Error loading image for drawing:", imageKey);
@@ -713,15 +724,17 @@
                         
                         // If the image is loaded, draw it
                         if (image && (image.complete || image.naturalWidth > 0)) {
-                            // Example size 150px zoomed, 50px overview
-                            const width = isZoomed ? 150 * scaleFactor : 50 * scaleFactor; 
+                            // FIX: Use a fixed size (e.g., 150 virtual pixels) and scale it down/up 
+                            // using the canvas's current scaleFactor
+                            const virtualWidth = 150; 
+                            const width = virtualWidth * scaleFactor; 
                             const height = width; 
                             
                             context.drawImage(image, dx - width / 2, dy - height / 2, width, height);
                             
                             // Add a small border to identify the image boundary
                             context.strokeStyle = 'rgba(0,0,0,0.5)';
-                            context.lineWidth = 1;
+                            context.lineWidth = isZoomed ? 1 : 0.5; // thinner border in overview
                             context.strokeRect(dx - width / 2, dy - height / 2, width, height);
                         }
                         break;
@@ -738,15 +751,16 @@
             
             // Calculate size based on parent container
             const containerWidth = boardDisplayArea.clientWidth;
-            const quadrantSize = Math.floor(containerWidth / 3);
+            // Use 1/3 of the container width minus a small gap for quadrant size
+            const quadrantSize = Math.floor((containerWidth - 8) / 3); 
             
             // Build the 3x3 grid HTML
-            let overviewHTML = `<div class="grid grid-cols-3 gap-2 p-2 w-full h-full" style="max-width:${quadrantSize * 3}px;">`;
+            let overviewHTML = `<div class="grid grid-cols-3 gap-2 p-1 w-full" style="max-width:${quadrantSize * 3 + 6}px;">`; // Adjust max-width for padding/gap
 
             for (let i = 1; i <= BOARD_COUNT; i++) {
                 overviewHTML += `
-                    <div id="quadrant-wrapper-${i}" class="cursor-pointer border border-gray-200 hover:border-blue-400 rounded-lg shadow-md hover:shadow-xl transition-all relative" data-board-id="${i}">
-                        <div class="absolute top-1 left-2 text-xs font-semibold text-gray-500 bg-white/70 px-1 rounded-sm">Board ${i}</div>
+                    <div id="quadrant-wrapper-${i}" class="cursor-pointer border border-gray-200 hover:border-blue-400 rounded-lg shadow-md hover:shadow-xl transition-all relative aspect-square" data-board-id="${i}">
+                        <div class="absolute top-1 left-2 text-xs font-semibold text-gray-500 bg-white/70 px-1 rounded-sm z-10">Board ${i}</div>
                         <canvas 
                             id="board-mini-${i}" 
                             width="${quadrantSize}" 
@@ -769,7 +783,6 @@
                     
                     const wrapper = document.getElementById(`quadrant-wrapper-${i}`);
                     wrapper.addEventListener('click', (e) => {
-                        // FIX: Changed dataset.board-id to dataset.boardId (camelCase)
                         const boardId = parseInt(e.currentTarget.dataset.boardId);
                         if (!isNaN(boardId)) {
                             switchBoard(boardId);
