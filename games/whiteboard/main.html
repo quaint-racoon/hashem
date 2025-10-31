@@ -164,6 +164,9 @@
                 // Start the application logic
                 setupCanvasSize();
                 window.addEventListener('resize', setupCanvasSize);
+                setTimeout(()=>{
+                    setupCanvasSize();
+                },1400)
                 setupListeners();
                 listenForStrokes();
 
