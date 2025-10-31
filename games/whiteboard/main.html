@@ -57,8 +57,9 @@
                     <button id="undo-button" class="w-full py-2 px-4 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-lg shadow-md transition duration-150 transform hover:scale-[1.01]">
                         Undo My Last Stroke Chunk
                     </button>
-                    <button id="clear-button" class="w-full py-2 px-4 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg shadow-md transition duration-150 transform hover:scale-[1.01]">
-                        Clear All Drawings
+                    <!-- UPDATED: Button text and functionality for user-only clear -->
+                    <button id="clear-my-drawings-button" class="w-full py-2 px-4 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg shadow-md transition duration-150 transform hover:scale-[1.01]">
+                        Clear My Drawings Only
                     </button>
                 </div>
 
@@ -102,14 +103,14 @@
 
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        let dbRTDB, auth, userId = null; // dbRTDB now holds the Realtime Database instance
+        let dbRTDB, auth, userId = null; 
         let isDrawing = false;
-        let currentStroke = []; // Holds points for the current, unsaved drawing path
-        let allStrokes = {}; // Stores all synchronized stroke documents by RTDB key
+        let currentStroke = []; 
+        let allStrokes = {}; 
         let lastTimestamp = 0;
 
         // Constants
-        const RTDB_NODE_NAME = 'whiteboard_strokes'; // The node name under public/data
+        const RTDB_NODE_NAME = 'whiteboard_strokes'; 
 
         const canvas = document.getElementById('whiteboard');
         const ctx = canvas.getContext('2d');
@@ -121,7 +122,8 @@
         const sizeSlider = document.getElementById('stroke-size');
         const sizeLabel = document.getElementById('size-label');
         const undoButton = document.getElementById('undo-button');
-        const clearButton = document.getElementById('clear-button');
+        // UPDATED: Reference to the new clear button ID
+        const clearMyDrawingsButton = document.getElementById('clear-my-drawings-button');
 
         // --- Firebase Initialization and Auth ---
 
@@ -135,7 +137,7 @@
             try {
                 const app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
-                dbRTDB = getDatabase(app); // Initialize Realtime Database
+                dbRTDB = getDatabase(app); 
 
                 // Authenticate the user
                 await new Promise(resolve => {
@@ -160,7 +162,6 @@
                 });
 
                 // Start the application logic
-                // Ensure canvas sizing is done when the page loads and on resize for responsiveness
                 window.addEventListener('resize', setupCanvasSize);
                 window.addEventListener('load', setupCanvasSize); 
                 
@@ -265,7 +266,7 @@
 
             // FIX: Save the entire accumulated path only when drawing stops (mouse/finger up)
             if (currentStroke.length > 1) {
-                saveCurrentChunk();
+                saveCurrentStroke();
             }
             currentStroke = []; // Reset the local stroke array for the next stroke
         }
@@ -287,7 +288,8 @@
             });
 
             undoButton.addEventListener('click', deleteLastChunk);
-            clearButton.addEventListener('click', clearAllStrokes);
+            // UPDATED: Attach listener to the new function
+            clearMyDrawingsButton.addEventListener('click', deleteMyDrawings);
         }
 
         // --- Realtime Database Interaction ---
@@ -297,33 +299,29 @@
             return ref(dbRTDB, path);
         };
 
-        // This function now saves the COMPLETE stroke path, not just a chunk.
-        async function saveCurrentChunk() {
+        async function saveCurrentStroke() {
             if (currentStroke.length < 2) {
                 return;
             }
 
             const currentTimestamp = Date.now();
-            const strokeData = { // Renamed from chunkData to strokeData conceptually
+            const strokeData = { 
                 userId: userId,
                 color: colorPicker.value,
                 size: parseInt(sizeSlider.value),
-                points: currentStroke, // The full path is saved here
+                points: currentStroke, 
                 createdAt: currentTimestamp,
             };
 
             const dbRef = getRTDBRef();
 
             try {
-                // Use push() to generate a unique key and save the data
                 await push(dbRef, strokeData);
                 console.log("Full stroke saved:", currentStroke.length, "points");
             } catch (e) {
                 console.error("Error pushing data to RTDB: ", e);
                 showTemporaryMessage("Error saving drawing stroke.", "bg-red-100 text-red-700 border-red-300");
             }
-
-            // Removed the internal currentStroke reset logic that caused fragmentation.
         }
 
         function listenForStrokes() {
@@ -332,7 +330,6 @@
             // onValue listens for all changes at the path
             onValue(dbRef, (snapshot) => {
                 const data = snapshot.val();
-                // Realtime Database returns null if the node is empty
                 allStrokes = data || {};
 
                 redrawAllStrokes();
@@ -347,8 +344,6 @@
             // Clear the canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Convert the RTDB object (key-value pairs) into an array of strokes,
-            // storing the RTDB key as the ID, and sort them by creation time.
             const strokesArray = Object.keys(allStrokes).map(key => ({
                 ...allStrokes[key],
                 id: key, // Store the RTDB key (e.g., -N_g87...) as the ID
@@ -408,23 +403,39 @@
             }
         }
 
-        async function clearAllStrokes() {
+        // NEW FUNCTION: Only clears the drawings created by the current user
+        async function deleteMyDrawings() {
             // Using a temporary modal replacement for confirm()
-            // NOTE: Replaced the standard browser confirm() with a custom message box below.
-            if (!confirm("Are you sure you want to permanently clear ALL drawings for EVERYONE?")) {
+            if (!confirm("Are you sure you want to permanently clear ALL of YOUR drawings? This will not affect other users.")) {
                 return;
             }
 
-            const rootRef = getRTDBRef();
+            // 1. Identify the stroke keys to delete (owned by current user)
+            const strokeKeysToDelete = Object.keys(allStrokes).filter(key => allStrokes[key].userId === userId);
 
-            try {
-                // Deleting the root reference is the most efficient way to clear everything in RTDB
-                await remove(rootRef);
-                showTemporaryMessage(`Successfully cleared the whiteboard.`, "bg-green-100 text-green-700 border-green-300");
+            if (strokeKeysToDelete.length === 0) {
+                showTemporaryMessage("You have no drawings to clear.", "bg-blue-100 text-blue-700 border-blue-300");
+                return;
+            }
 
-            } catch (e) {
-                console.error("Error clearing all documents:", e);
-                showTemporaryMessage("Failed to clear the board. See console for details.", "bg-red-100 text-red-700 border-red-300");
+            // 2. Delete each stroke individually
+            const rootPath = `artifacts/${appId}/public/data/${RTDB_NODE_NAME}`;
+            let successfulDeletes = 0;
+
+            for (const key of strokeKeysToDelete) {
+                const strokeRef = ref(dbRTDB, `${rootPath}/${key}`);
+                try {
+                    await remove(strokeRef);
+                    successfulDeletes++;
+                } catch (e) {
+                    console.error(`Error deleting stroke ${key}:`, e);
+                }
+            }
+
+            if (successfulDeletes === strokeKeysToDelete.length) {
+                showTemporaryMessage(`Successfully cleared ${successfulDeletes} of your drawings.`, "bg-green-100 text-green-700 border-green-300");
+            } else {
+                showTemporaryMessage(`Finished clearing. ${successfulDeletes}/${strokeKeysToDelete.length} strokes deleted successfully.`, "bg-yellow-100 text-yellow-700 border-yellow-300");
             }
         }
 
