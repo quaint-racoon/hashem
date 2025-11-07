@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cedra's Bright Bloom</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Load Google Font for the script style with high priority -->
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+          theme: {
+            extend: {
+              colors: {
+                'cedra-navy': '#000080', // Navy Blue
+                'cedra-pink': '#F4C2C2', // Baby Pink
+                'cedra-wine': '#722F37', // Wine Red
+                'cedra-gold': '#FFD700', // Sunflower/Daisy Gold
+                'cedra-light-bg': '#fefefe',
+              },
+              fontFamily: {
+                // IMPORTANT: Ensure Dancing Script is the first choice, with a cursive fallback
+                script: ['Dancing Script', 'cursive'],
+                sans: ['Inter', 'sans-serif'],
+              }
+            }
+          }
+        }
+    </script>
+    <style>
+        /* Define CSS variables for pure CSS use */
+        :root {
+            --cedra-navy: #000080;
+            --cedra-pink: #F4C2C2;
+            --cedra-wine: #722F37;
+        }
+        
+        /* Custom background to simulate the vibrant Spanish beach and joy */
+        .header-bg {
+            /* Now uses the placeholder image, assuming pic.jpeg will be layered over it */
+            background: linear-gradient(135deg, rgba(244, 194, 194, 0.9) 0%, rgba(255, 215, 0, 0.7) 100%);
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* Responsive height for sections */
+        section {
+            min-height: 40vh;
+        }
+
+        /* --- Custom Styles for Text and Animations --- */
+        
+        /* Special text style to replace double asterisks */
+        .special-text {
+            color: var(--cedra-wine); /* Wine Red for emphasis */
+            font-style: italic;
+            font-weight: 700; /* Bold */
+        }
+        
+        /* Animations for the splash screen */
+        
+        /* Container moves in slightly */
+        @keyframes moveIn {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(0.95); opacity: 1; } /* move inwards */
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        /* New: Headline flies UP */
+        @keyframes flyOutUp {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-100vh); } 
+        }
+
+        /* New: Button flies DOWN */
+        @keyframes flyOutDown {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(100vh); } 
+        }
+
+        /* Animation for the overlay fade */
+        @keyframes fadeBackground {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        
+        /* NEW: Animation for the content to fade in smoothly */
+        @keyframes fadeInContent {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .animate-moveIn {
+            animation: moveIn 0.8s ease-in-out;
+        }
+        .animate-flyOutUp {
+            animation: flyOutUp 1.5s ease-in-out forwards;
+        }
+        .animate-flyOutDown {
+            animation: flyOutDown 1.5s ease-in-out forwards;
+        }
+        .animate-fadeBackground {
+            animation: fadeBackground 1.5s ease-out forwards;
+        }
+        .animate-fadeInContent {
+            animation: fadeInContent 1.0s ease-out forwards; /* 1 second smooth fade */
+        }
+
+        /* Gradient for the splash screen */
+        .splash-gradient {
+            background: linear-gradient(135deg, var(--cedra-navy), var(--cedra-pink)); 
+        }
+    </style>
+</head>
+<body class="bg-cedra-light-bg text-gray-900 font-sans">
+    
+    <!-- AUDIO ELEMENT - MUST BE HOSTED LOCALLY (music.mp3) -->
+    <audio id="theme-music" src="music.mp3" preload="auto" muted hidden></audio>
+
+    <!-- PRELOADER OVERLAY (Splash Screen) -->
+    <div id="preloader-overlay" class="fixed inset-0 splash-gradient z-50 flex flex-col items-center justify-center p-4 transition-opacity duration-1000">
+        <div id="preloader-content" class="text-center">
+            <!-- This uses the handwriting font via font-script -->
+            <h1 id="preloader-headline" class="font-script text-6xl md:text-8xl font-bold mb-8 drop-shadow-lg text-white">
+                Cedra's Corner
+            </h1>
+            <!-- Added ID for individual animation -->
+            <button onclick="startWebsite()" id="start-button" class="px-8 py-4 bg-white text-cedra-navy text-xl font-bold rounded-full shadow-2xl hover:bg-gray-200 transition duration-300 transform hover:scale-105">
+                Hop In The Corner
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN WEBSITE CONTENT (Initially Hidden) -->
+    <div id="main-content" class="opacity-0"> 
+
+        <!-- Header & Welcome Section -->
+        <header class="header-bg text-white shadow-xl py-16 px-4 md:px-8">
+            <div class="max-w-4xl mx-auto text-center">
+                <!-- Image Container using the pic.png reference -->
+                <img src="pic.png" onerror="this.onerror=null; this.src='https://placehold.co/150x150/722F37/F4C2C2?text=Cedra'" alt="Cedra's Portrait" 
+                     class="w-36 h-36 rounded-full mx-auto mb-4 border-4 border-white shadow-lg object-cover">
+
+                <!-- This uses the handwriting font via font-script -->
+                <h1 class="font-script text-6xl md:text-8xl font-bold mb-4 drop-shadow-lg" style="color: #000080;">
+                    Cedra's Corner
+                </h1>
+                <p class="text-xl md:text-2xl font-light tracking-wider bg-black bg-opacity-30 inline-block p-2 rounded-lg">
+                    The Bright Bloom — where joy, sunshine, and a little bit of ambition live.
+                </p>
+            </div>
+        </header>
+
+        <!-- Navigation (Simple Sticky Bar) -->
+        <nav class="sticky top-0 z-10 bg-white shadow-md">
+            <div class="max-w-6xl mx-auto flex justify-around py-3">
+                <a href="#travel" class="text-sm md:text-lg font-semibold text-cedra-navy hover:text-cedra-pink transition duration-300">Spain & Sun</a>
+                <a href="#jokes" class="text-sm md:text-lg font-semibold text-cedra-navy hover:text-cedra-pink transition duration-300">Secret Language</a>
+                <a href="#blueprint" class="text-sm md:text-lg font-semibold text-cedra-navy hover:text-cedra-pink transition duration-300">The Blueprint</a>
+                <a href="#music" class="text-sm md:text-lg font-semibold text-cedra-navy hover:text-cedra-pink transition duration-300">Soundtrack</a>
+            </div>
+        </nav>
+
+        <!-- El Sol y La Playa (Travel) Section -->
+        <section id="travel" class="py-16 px-4 md:px-8 bg-white">
+            <div class="max-w-4xl mx-auto">
+                <!-- This uses the handwriting font via font-script -->
+                <h2 class="font-script text-5xl text-cedra-wine mb-8 text-center border-b-2 border-cedra-pink pb-2">El Sol y La Playa</h2>
+                <div class="grid md:grid-cols-2 gap-8 items-center">
+                    <div class="space-y-4">
+                        <p class="text-lg">Your spirit is powered by the thrill of adventure and the calming sound of the waves. While Paris, Switzerland, and Italy hold your heart, nothing quite beats the energy of <span class="special-text">Spain</span>!</p>
+                        <p class="text-xl font-bold text-cedra-navy">This is where your energetic, joyful spirit meets the sun—on the beach.</p>
+                        <p class="text-sm text-gray-500 italic">This card represents all your favorite places: Spain, Switzerland, Italy, and France.</p>
+                    </div>
+                    <div class="bg-cedra-navy text-white p-6 rounded-xl shadow-lg">
+                        <h3 class="font-script text-4xl mb-2 text-cedra-pink">The Spirit Animals</h3>
+                        <p>Fierce like a <span class="special-text">Bear</span>, mysterious like a <span class="special-text">Cat</span>, and steady like a <span class="special-text">Turtle</span>—you're the perfect combination of all three! A true force of nature.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- The Secret Language (Humor) Section -->
+        <section id="jokes" class="py-16 px-4 md:px-8 bg-cedra-pink bg-opacity-30">
+            <div class="max-w-4xl mx-auto">
+                <!-- This uses the handwriting font via font-script -->
+                <h2 class="font-script text-5xl text-cedra-wine mb-10 text-center">The Secret Language & Codes</h2>
+
+                <div class="grid md:grid-cols-3 gap-6 text-center">
+                    <!-- Smile Joke -->
+                    <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-cedra-wine">
+                        <p class="text-6xl mb-3">😊</p>
+                        <h3 class="font-bold text-lg text-cedra-navy">Draws a Smile</h3>
+                        <p>It's not just *one* thing you say, it's literally <span class="special-text">everything</span>. Thank you for the endless joy!</p>
+                    </div>
+
+                    <!-- Thedra Joke -->
+                    <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-cedra-navy">
+                        <p class="text-6xl mb-3">🗣️</p>
+                        <h3 class="font-bold text-lg text-cedra-navy">Code Word: Thedra</h3>
+                        <p>The best mispronunciation of a name, making it our own private joke. If you know, you know!</p>
+                    </div>
+
+                    <!-- 156 Joke -->
+                    <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-cedra-pink">
+                        <p class="text-6xl mb-3">🔢</p>
+                        <h3 class="font-bold text-lg text-cedra-navy">Magic Number: 156</h3>
+                        <p>The universe's secret sign that something amazing is about to happen. (lololol)</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- The Unseen Blueprint (Ambition/Reflection) Section -->
+        <section id="blueprint" class="py-16 px-4 md:px-8 bg-cedra-navy text-white">
+            <div class="max-w-4xl mx-auto text-center">
+                <!-- This uses the handwriting font via font-script -->
+                <h2 class="font-script text-5xl text-cedra-pink mb-8 border-b-2 border-cedra-wine pb-2">The Unseen Blueprint</h2>
+                
+                <div class="bg-black bg-opacity-40 p-8 rounded-xl shadow-2xl">
+                    <!-- Daisy/Flower Element -->
+                    <p class="text-6xl mb-4" style="color: #FFD700;">🌼</p>
+                    <p class="text-xl italic mb-6">A sunflower is almost perfect, but you are a daisy—simple, resilient, and radiating light.</p>
+
+                    <!-- This uses the handwriting font via font-script -->
+                    <p class="text-3xl font-bold font-script text-cedra-wine mb-4">"maybe in another life🥀"</p>
+                    <p class="text-lg font-light">
+                        This is dedicated to the dream of engineering—a reminder that you possess an unstoppable mind, capable of <span class="special-text">designing and building</span> the most amazing friend and future. Your intelligence and ambition are immeasurable. 
+                    </p>
+                    <p class="text-sm mt-4 text-cedra-pink">P.S. (Regarding your height): A tiny frame holds the biggest heart and the fiercest energy!</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Cedra's Soundtrack Section -->
+        <section id="music" class="py-16 px-4 md:px-8 bg-white">
+            <div class="max-w-4xl mx-auto text-center">
+                <!-- This uses the handwriting font via font-script -->
+                <h2 class="font-script text-5xl text-cedra-wine mb-8">Cedra's Soundtrack</h2>
+                <p class="text-xl mb-6">Every amazing person needs a theme song. Press play to feel the vibe.</p>
+                
+                <div class="bg-gray-100 p-8 rounded-xl inline-block shadow-lg">
+                    <h3 class="font-bold text-2xl text-cedra-navy mb-4">Layla by Cairo Kee</h3>
+                    <!-- Placeholder for music link/player -->
+                    <a href="https://www.youtube.com/results?search_query=Layla+by+Cairo+Kee" target="_blank" class="inline-flex items-center bg-cedra-pink hover:bg-cedra-wine text-white font-bold py-3 px-6 rounded-full transition duration-300 shadow-md">
+                        <!-- Play Icon SVG -->
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+                        Listen Now (YouTube Search)
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="bg-black text-cedra-pink py-6 text-center">
+            <div class="max-w-4xl mx-auto">
+                <p class="font-light text-sm">&copy; Designed with great love and zero boredom.</p>
+            </div>
+        </footer>
+
+    </div>
+
+    <script>
+        // Function to handle the preloader animation and reveal the site
+        function startWebsite() {
+            const overlay = document.getElementById('preloader-overlay');
+            const content = document.getElementById('preloader-content');
+            const headline = document.getElementById('preloader-headline');
+            const music = document.getElementById('theme-music');
+            const mainContent = document.getElementById('main-content');
+            const startButton = document.getElementById('start-button');
+            
+            // 1. Disable button and trigger move inwards animation (on the container)
+            startButton.disabled = true;
+            content.classList.add('animate-moveIn');
+
+            // --- Start Music Playback ---
+            music.muted = false;
+            music.play().catch(error => {
+                console.warn("Audio playback failed (check if 'music.mp3' exists):", error);
+            });
+            // -----------------------------
+            
+            // 2. After the initial inward movement, trigger fly out and fade
+            setTimeout(() => {
+                content.classList.remove('animate-moveIn'); 
+                
+                // Apply separate fly-out animations
+                headline.classList.add('animate-flyOutUp');    // Headline flies UP
+                startButton.classList.add('animate-flyOutDown'); // Button flies DOWN
+                
+                overlay.classList.add('animate-fadeBackground');
+            }, 800); // Wait for moveIn to complete (0.8s)
+
+            // 3. Reveal the main content after the background fade is complete
+            setTimeout(() => {
+                overlay.style.display = 'none'; // Completely remove the overlay element
+                
+                // FIX: Instead of just removing opacity-0, we add a smooth fade-in animation
+                mainContent.classList.remove('opacity-0'); 
+                mainContent.classList.add('animate-fadeInContent');
+                
+            }, 2300); // Wait for flyOut and fadeBackground to complete (1.5s + 0.8s buffer)
+        }
+    </script>
+</body>
+</html>
